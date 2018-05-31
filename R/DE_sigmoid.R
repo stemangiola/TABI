@@ -16,8 +16,6 @@ sigmoid_link = function(
 	## Model 1
 	#######################################
 
-	writeLines("First pass")
-
 	# Create dimensions for model
 	G = ncol(y)
 	T = nrow(y)
