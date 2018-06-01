@@ -1,6 +1,6 @@
 functions{
 	vector log_gen_inv_logit(row_vector y, row_vector k) {
-		return to_vector( log(k) - log1p_exp(- ( y ) ) );
+		return to_vector( k - log1p_exp(- ( y ) ) );
 		}
 }
 data {
@@ -19,7 +19,7 @@ transformed data{
 }
 parameters {
 	matrix[R, G-F] beta_changing;
-	row_vector<lower=0>[G] k;
+	row_vector[G] k;
 
 	real<lower=0> beta_sigma[R-1];
 
@@ -35,7 +35,7 @@ model {
 	beta_changing[1] ~normal(0,1);
 	for(r in 2:R) beta_changing[r] ~ normal(0, beta_sigma[r-1]);
 
-	k ~ normal(0,5);
+	k ~ normal(0,1);
 	beta_sigma ~ normal(0,1);
 
 }
@@ -43,5 +43,5 @@ generated quantities{
   int y_gen[T,G];          // RNA-seq counts
 
 	for (t in 1:T)
-			y_gen[t] = multinomial_rng( softmax( to_vector( log(k) - log1p_exp(- ( X[t] * beta ) ) ) ), exposure[t] );
+			y_gen[t] = multinomial_rng( softmax( log_gen_inv_logit(X[t] * beta, k)  ), exposure[t] );
 }
