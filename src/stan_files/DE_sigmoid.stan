@@ -38,6 +38,8 @@ model {
 	k ~ normal(0,1);
 	beta_sigma ~ normal(0,1);
 
+	sum(k) ~ normal(0, 0.01 * G);
+
 }
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
