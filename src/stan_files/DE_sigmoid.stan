@@ -21,7 +21,7 @@ parameters {
 	matrix[R, G-F] beta_changing;
 	row_vector[G] k;
 
-	real<lower=0> beta_sigma[R-1];
+	//real<lower=0> beta_sigma[R-1];
 
 }
 transformed parameters{
@@ -33,10 +33,10 @@ model {
 		y[t] ~ multinomial( softmax( log_gen_inv_logit(X[t] * beta, k) ) );
 
 	beta_changing[1] ~normal(0,1);
-	for(r in 2:R) beta_changing[r] ~ normal(0, beta_sigma[r-1]);
+	for(r in 2:R) beta_changing[r] ~ double_exponential(0, 0.2);
 
 	k ~ normal(0,1);
-	beta_sigma ~ normal(0,1);
+	//beta_sigma ~ normal(0,1);
 
 	sum(k) ~ normal(0, 0.01 * G);
 
