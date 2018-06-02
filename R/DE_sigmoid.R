@@ -9,7 +9,9 @@
 sigmoid_link = function(
 	X,
 	y,
-	house_keeping_genes
+	house_keeping_genes,
+	iter,
+	warmup
 ){
 
 	#######################################
@@ -26,19 +28,19 @@ sigmoid_link = function(
 	exposure = y %>% rowSums()
 
 	# Run model
-	fit1 =
+	fit =
 		sampling(
 			stanmodels$DE_sigmoid,
 			#rstan::stan(file = "~/PhD/TABI/src/stan_files/DE_sigmoid.stan",
-			iter =   500,
-			warmup = 250,
+			iter =   iter,
+			warmup = warmup,
 			chains = 4,
 			cores = 4
 			#, control=list(adapt_delta=0.95, stepsize = 0.05, max_treedepth =15)
 		)
 
 	# Produce output table
-	CI_df = fit1 %>%
+	CI_df = fit %>%
 		gather_samples(beta[covariate, gene]) %>%
 		filter(covariate==2) %>%
 		mean_qi(.prob =  1 - (0.05 / G) )
@@ -50,10 +52,15 @@ sigmoid_link = function(
 	list(
 
 		# All fits
-		fit1 = fit1,
+		fit = fit,
 
-		# Table of confidence intervals
+		# Produce output table CI
 		CI_df = CI_df,
+
+		# Generated quantities
+		generated_quantities = fit %>%
+			gather_samples(y_gen[sample_idx, gene_idx] ) %>%
+			mean_qi(),
 
 		# Plot of coefficient
 		p =
