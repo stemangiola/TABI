@@ -31,6 +31,12 @@
 #' @importFrom tidybayes gather_samples
 #' @importFrom tidybayes mean_qi
 #'
+#' @importFrom ggplot2 ggplot
+#' @importFrom ggplot2 aes
+#' @importFrom ggplot2 geom_errorbar
+#' @importFrom ggplot2 geom_point
+#' @importFrom ggplot2 theme_bw
+#'
 #'
 #'
 #'
@@ -49,7 +55,9 @@ TABI_glm = function(
 	formula,
 	data,
 	link = "sigmoid",
-	house_keeping_genes = house_keeping_genes %>% pull(symbol)
+	house_keeping_genes = house_keeping_genes %>% pull(symbol),
+	iter = 500,
+	warmup = round(iter/2)
 ){
 
 	# Formula parser
@@ -84,8 +92,68 @@ TABI_glm = function(
 		select(-one_of(parse_formula(formula))) %>%
 		select(one_of(house_keeping_genes), everything())
 
-	switch(
-		link,
-		"sigmoid" = sigmoid_link(X, y, house_keeping_genes)
+	# Return
+	c(
+
+		# Return the inputs to the model
+		input = list(
+			X = X,
+			y = y,
+			house_keeping_genes = house_keeping_genes
+		),
+
+		# Return the outcome of the model
+		switch(
+			link,
+			"sigmoid" = sigmoid_link(X, y, house_keeping_genes, iter, warmup)
+		)
 	)
+}
+
+#' Plots the observed aganst the modelled read counts for a gene
+#'
+#' @param formula A formula
+#' @param data A tibble
+#' @param link A character string
+#' @return A tibble
+#'
+#' @export
+#'
+plot_generated_gene = function(TABi_obj, gene, covariate = colnames(TABi_obj$input.X)[2]){
+
+	TABi_obj$generated_quantities %>%
+
+		# Add gene names
+		left_join(
+			tibble(
+				gene_idx = 1:ncol(TABi_obj$input.y),
+				gene =     colnames(TABi_obj$input.y)
+			),
+			by = "gene_idx"
+		) %>%
+
+		# Fiter gene
+		filter(gene == !!gene) %>%
+
+		# Attach X
+		bind_cols(
+			TABi_obj$input.X %>%
+				select(!!covariate) %>%
+				setNames("x")
+		) %>%
+
+		# Attach observed y
+		bind_cols(
+			TABi_obj$input.y %>% select(!!gene) %>%
+				setNames("observed")
+		) %>%
+
+		# Plot
+		ggplot(aes(x=x, y=observed)) +
+		geom_errorbar(aes(ymin=conf.low, ymax=conf.high), width = 0) +
+		geom_point(color="red") +
+		theme_bw()
+
+
+
 }
