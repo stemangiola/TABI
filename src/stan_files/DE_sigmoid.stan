@@ -4,7 +4,6 @@ functions{
 		}
 }
 data {
-      int<lower = 0> F;                   // fixed genes
       int<lower = 0> G;                   // all genes
       int<lower = 0> T;                   // tube
 			int<lower=0> R;
@@ -13,27 +12,20 @@ data {
 
 			int exposure[T];                 // How many reads have been sequenced for each sample
 }
-transformed data{
-	matrix[R, F] zeros;
-	zeros =  rep_matrix(0, R, F);
-}
 parameters {
-	matrix[R, G-F] beta_changing;
+	matrix[R, G] beta;
 	row_vector[G] k;
 
 	//real<lower=0> beta_sigma[R-1];
 
-}
-transformed parameters{
-	matrix[R, G] beta = append_col(zeros,	beta_changing);
 }
 model {
 
 	for (t in 1:T)
 		y[t] ~ multinomial( softmax( log_gen_inv_logit(X[t] * beta, k) ) );
 
-	beta_changing[1] ~normal(0,1);
-	for(r in 2:R) beta_changing[r] ~ double_exponential(0, 0.2);
+	beta[1] ~normal(0,1);
+	for(r in 2:R) beta[r] ~ double_exponential(0, 0.2);
 
 	k ~ normal(0,1);
 	//beta_sigma ~ normal(0,1);
