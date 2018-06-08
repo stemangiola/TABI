@@ -55,7 +55,6 @@ TABI_glm = function(
 	formula,
 	data,
 	link = "sigmoid",
-	house_keeping_genes = house_keeping_genes %>% pull(symbol),
 	iter = 500,
 	warmup = round(iter/2)
 ){
@@ -89,8 +88,7 @@ TABI_glm = function(
 	y =
 		data %>%
 		mutate_if(is_numeric, as.integer) %>%
-		select(-one_of(parse_formula(formula))) %>%
-		select(one_of(house_keeping_genes), everything())
+		select(-one_of(parse_formula(formula)))
 
 	# Return
 	c(
@@ -98,14 +96,13 @@ TABI_glm = function(
 		# Return the inputs to the model
 		input = list(
 			X = X,
-			y = y,
-			house_keeping_genes = house_keeping_genes
+			y = y
 		),
 
 		# Return the outcome of the model
 		switch(
 			link,
-			"sigmoid" = sigmoid_link(X, y, house_keeping_genes, iter, warmup)
+			"sigmoid" = sigmoid_link(X, y, iter, warmup)
 		)
 	)
 }

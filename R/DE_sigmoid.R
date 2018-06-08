@@ -9,7 +9,6 @@
 sigmoid_link = function(
 	X,
 	y,
-	house_keeping_genes,
 	iter,
 	warmup
 ){
@@ -21,17 +20,23 @@ sigmoid_link = function(
 	# Create dimensions for model
 	G = ncol(y)
 	T = nrow(y)
-	F = length(house_keeping_genes %in% colnames(y))
 	R = ncol(X)
 
 	# Exposure terms
 	exposure = y %>% rowSums()
 
+	# Horseshoe
+	nu_local = 1
+	nu_global = 45
+	par_ratio = 0.05
+	slab_df = 4
+	slab_scale = 5
+
 	# Run model
 	fit =
-		sampling(
-			stanmodels$DE_sigmoid,
-			#rstan::stan(file = "~/PhD/TABI/src/stan_files/DE_sigmoid.stan",
+		#sampling(
+			#stanmodels$DE_sigmoid,
+			rstan::stan(file = "~/PhD/TABI/src/stan_files/DE_sigmoid.stan",
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
