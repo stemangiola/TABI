@@ -82,8 +82,9 @@ inversion_z ~ normal(0 , 1);
 intercept ~ normal(0,5);
 sum(intercept) ~ normal(0, 0.01 * G);
 
-for (t in 1:T)
-y[t] ~ multinomial( softmax( log_gen_inv_logit(X[t] * beta, inversion, intercept) ) );
+// Likelihood
+for (t in 1:T) y[t] ~ multinomial( softmax( log_gen_inv_logit(X[t] * beta, inversion, intercept) ) );
+
 }
 
 generated quantities{
