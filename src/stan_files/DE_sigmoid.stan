@@ -73,11 +73,12 @@ aux1_global ~ normal (0 , 1);
 aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
 caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
 
+// Trick
+sigma_trick ~ normal(0,1);
+for(r in 2:R) beta1[r-1] ~ normal(0,10);
 
 // Linear system
 inversion_z ~ normal(0 , 1);
-sigma_trick ~ normal(0,1);
-
 intercept ~ normal(0,5);
 sum(intercept) ~ normal(0, 0.01 * G);
 
