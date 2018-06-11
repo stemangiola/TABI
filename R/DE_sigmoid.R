@@ -20,7 +20,7 @@ sigmoid_link = function(
 	# Create dimensions for model
 	G = ncol(y)
 	T = nrow(y)
-	R = ncol(X)
+	R_1 = ncol(X)-1
 
 	# Exposure terms
 	exposure = y %>% rowSums()

@@ -1,89 +1,126 @@
 functions{
 
-  vector log_gen_inv_logit(row_vector y, row_vector inversion, row_vector intercept) {
-    return to_vector( intercept + log1p_exp(-inversion) - log1p_exp(- y  ) );
+  vector log_gen_inv_logit(row_vector y, vector inversion, vector intercept) {
+    return  intercept + log1p_exp(-inversion) - log1p_exp(- to_vector(y)  ) ;
+  }
+
+    vector reg_horseshoe(
+						vector zb,
+						real aux1_global ,
+						real aux2_global,
+						vector  aux1_local ,
+						vector aux2_local ,
+						real  caux,
+						real scale_global ,
+						real slab_scale
+						) {
+    int K = rows(zb);
+
+    // Horseshoe variables
+		real tau ; // global shrinkage parameter
+		vector [ K] lambda ; // local shrinkage parameter
+		vector [ K] lambda_tilde ; // ’ truncated ’ local shrinkage parameter
+		real c; // slab scale
+
+		// Horseshoe calculation
+		lambda = aux1_local .* sqrt ( aux2_local );
+		tau = aux1_global * sqrt ( aux2_global ) * scale_global * 1 ;
+		c = slab_scale * sqrt ( caux );
+		lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
+		return  zb .* lambda_tilde * tau ;
   }
 }
+
 data {
 int<lower = 0> G;                   // all genes
 int<lower = 0> T;                   // tube
-int<lower=0> R;
+int<lower=0> R_1;
 int<lower = 0> y[T, G];             // RNA-seq counts
-matrix[T,R] X;
+matrix[T,R_1+1] X;
 int exposure[T];                 // How many reads have been sequenced for each sample
 
 // Horseshoe
-real < lower =0 > par_ratio ; // proportion of 0s
-real < lower =1 > nu_global ; // degrees of freedom for the half -t prior
-real < lower =1 > nu_local ; // degrees of freedom for the half - t priors
-real < lower =0 > slab_scale ; // slab scale for the regularized horseshoe
-real < lower =0 > slab_df ; // slab degrees of freedom for the regularized
+vector < lower =0 >[R_1] par_ratio ; // proportion of 0s
+vector < lower =1 >[R_1] nu_global ; // degrees of freedom for the half -t prior
+vector < lower =1 >[R_1] nu_local ; // degrees of freedom for the half - t priors
+vector < lower =0 >[R_1] slab_scale ; // slab scale for the regularized horseshoe
+vector < lower =0 >[R_1] slab_df; // slab degrees of freedom for the regularized
 }
+
 transformed data{
-real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
+vector < lower =0 >[R_1] scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
 }
+
 parameters {
 // Linear model
-row_vector[G] inversion_z;
-row_vector[G] intercept;
-row_vector<lower=0>[G] sigma_trick;
+vector[G] inversion_z;
+vector[G] intercept;
+vector<lower=0>[G] sigma_trick;
 
 // Horseshoe
-vector [ G] beta1_z;
-real < lower =0 > aux1_global ;
-real < lower =0 > aux2_global ;
-vector < lower =0 >[ G] aux1_local ;
-vector < lower =0 >[ G] aux2_local ;
-real < lower =0 > caux ;
+vector [ G] beta1_z[R_1];
+real < lower =0 > aux1_global[R_1] ;
+real < lower =0 > aux2_global[R_1] ;
+vector < lower =0 >[ G] aux1_local[R_1] ;
+vector < lower =0 >[ G] aux2_local[R_1] ;
+real < lower =0 > caux[R_1] ;
 }
+
 transformed parameters {
 
-// Horseshoe variables
-real < lower =0 > tau ; // global shrinkage parameter
-vector < lower =0 >[ G] lambda ; // local shrinkage parameter
-vector < lower =0 >[ G] lambda_tilde ; // ’ truncated ’ local shrinkage parameter
-real < lower =0 > c; // slab scale
-
-matrix[R, G] beta;
-matrix[R-1, G] beta1;
-row_vector[G] inversion;
-row_vector[G] beta1_trick;
+vector[G] beta1[R_1];
+vector[G] beta1_trick[R_1];
+vector[G] inversion;
+matrix[R_1+1, G] beta;
+matrix[T, G] y_hat;
 
 // Horseshoe calculation
-lambda = aux1_local .* sqrt ( aux2_local );
-tau = aux1_global * sqrt ( aux2_global ) * scale_global * 1 ;
-c = slab_scale * sqrt ( caux );
-lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
-beta1[1] =  to_row_vector(beta1_z .* lambda_tilde * tau)   ;
+for(r in 1:R_1)
+	beta1[r] =
+		reg_horseshoe(
+			beta1_z[r],
+			aux1_global[r] ,
+			aux2_global[r],
+			aux1_local[r] ,
+			aux2_local[r] ,
+			caux[r],
+			scale_global[r],
+			slab_scale[r]
+		);
 
-// trick
-beta1_trick = beta1[1] .* sigma_trick * 0.5;
-inversion = inversion_z .* sigma_trick * 0.5;
+	// trick
+	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick * 0.5;
+	inversion = inversion_z .* sigma_trick * 0.5;
 
-// make beta
-beta = append_row(inversion, beta1_trick);
+	// make beta
+	beta[1] = to_row_vector(inversion);
+	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1_trick[r]);
+
+	// Matrix multiplication for speed up
+	y_hat = X * beta;
+
 }
 model {
 
 // Horseshoe
-beta1_z ~ normal (0 , 1);
-aux1_local ~ normal (0 , 1);
-aux2_local ~ inv_gamma (0.5* nu_local , 0.5* nu_local );
+for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
+for(r in 1:R_1) aux1_local[r] ~ normal (0 , 1);
+for(r in 1:R_1) aux2_local[r] ~ inv_gamma (0.5* nu_local , 0.5* nu_local );
 aux1_global ~ normal (0 , 1);
 aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
 caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
 
 // Trick
 sigma_trick ~ normal(0,1);
-for(r in 2:R) beta1[r-1] ~ normal(0,10);
+for(r in 1:R_1) beta1[r] ~ normal(0,10);
 
 // Linear system
-inversion_z ~ normal(0 , 1);
+inversion_z ~ normal(0 ,1);
 intercept ~ normal(0,5);
 sum(intercept) ~ normal(0, 0.01 * G);
 
 // Likelihood
-for (t in 1:T) y[t] ~ multinomial( softmax( log_gen_inv_logit(X[t] * beta, inversion, intercept) ) );
+for (t in 1:T) y[t] ~ multinomial( softmax( log_gen_inv_logit(y_hat[t], inversion, intercept) ) );
 
 }
 
@@ -91,5 +128,5 @@ generated quantities{
   int y_gen[T,G];          // RNA-seq counts
 
 	for (t in 1:T)
-			y_gen[t] = multinomial_rng( softmax( log_gen_inv_logit(X[t] * beta, inversion, intercept) ), exposure[t] );
+			y_gen[t] = multinomial_rng( softmax( log_gen_inv_logit(y_hat[t], inversion, intercept) ), exposure[t] );
 }
