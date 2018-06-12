@@ -112,7 +112,7 @@ model {
 
 	// Trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
 	sigma_trick ~ normal(0,1);
-	for(r in 1:R_1) beta1[r] ~ normal(0,10);
+	//for(r in 1:R_1) beta1[r] ~ normal(0,10);
 
 	// Linear system
 	inversion_z ~ normal(0 ,1);
