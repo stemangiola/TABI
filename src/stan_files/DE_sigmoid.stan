@@ -1,5 +1,21 @@
 functions{
 
+ real dirichlet_multinomial_lpmf(int[] y, vector alpha) {
+  real alpha_plus = sum(alpha);
+
+    return lgamma(alpha_plus) + sum(lgamma(alpha + to_vector(y)))
+                - lgamma(alpha_plus+sum(y)) - sum(lgamma(alpha));
+  }
+
+ 	int[] dirichlet_multinomial_rng(vector alpha, int exposure) {
+
+   	int K = rows(alpha);
+    vector[K] alpha_dir = dirichlet_rng(alpha);
+    int alpha_dir_mult[K] = multinomial_rng(alpha_dir, exposure);
+
+    return alpha_dir_mult;
+  }
+
   vector log_gen_inv_logit(row_vector y, vector inversion, vector intercept) {
     return  intercept + log1p_exp(-inversion) - log1p_exp(- to_vector(y)  ) ;
   }
@@ -57,6 +73,9 @@ parameters {
 	vector[G] intercept;
 	vector<lower=0>[G] sigma_trick; //Discourse [quote=\"stijn, post:2, topic:4201\"]
 
+	// Overdispersion of Dirichlet-multinomial
+	real<lower=0> xi;
+
 	// Horseshoe
 	vector [ G] beta1_z[R_1];
 	real < lower =0 > aux1_global[R_1] ;
@@ -112,15 +131,18 @@ model {
 
 	// Trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
 	sigma_trick ~ normal(0,1);
-	for(r in 1:R_1) beta1[r] ~ normal(0,10);
+	//for(r in 1:R_1) beta1[r] ~ normal(0,10);
 
 	// Linear system
 	inversion_z ~ normal(0 ,1);
 	intercept ~ normal(0,5);
 	sum(intercept) ~ normal(0, 0.01 * G);
 
+	// Overdispersion
+	xi ~ normal(0,100);
+
 	// Likelihood
-	for (t in 1:T) y[t] ~ multinomial( softmax( log_gen_inv_logit(y_hat[t], inversion, intercept) ) );
+	for (t in 1:T) y[t] ~ dirichlet_multinomial( xi * softmax( log_gen_inv_logit(y_hat[t], inversion, intercept) ) );
 
 }
 
@@ -128,5 +150,5 @@ generated quantities{
   int y_gen[T,G];          // RNA-seq counts
 
 	for (t in 1:T)
-			y_gen[t] = multinomial_rng( softmax( log_gen_inv_logit(y_hat[t], inversion, intercept) ), exposure[t] );
-}
+			y_gen[t] = dirichlet_multinomial_rng( xi * softmax( log_gen_inv_logit(y_hat[t], inversion, intercept) ), exposure[t] );
+	}
