@@ -26,17 +26,17 @@ sigmoid_link = function(
 	exposure = y %>% rowSums()
 
 	# Horseshoe
-	nu_local = 1
-	nu_global = 45
-	par_ratio = 0.05
-	slab_df = 4
-	slab_scale = 5
+	nu_local = array(rep(1,R_1), dim=R_1)
+	nu_global = array(rep(45, R_1), dim=R_1)
+	par_ratio = array(rep(0.05, R_1), dim=R_1)
+	slab_df = array(rep(4, R_1), dim=R_1)
+	slab_scale = array(rep(5, R_1), dim=R_1)
 
 	# Run model
 	fit =
-		sampling(
-			stanmodels$DE_sigmoid,
-			#rstan::stan(file = "~/PhD/TABI/src/stan_files/DE_sigmoid.stan",
+		#sampling(
+			#stanmodels$DE_sigmoid,
+			rstan::stan(file = "~/PhD/TABI/src/stan_files/DE_sigmoid.stan",
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
@@ -80,7 +80,7 @@ sigmoid_link = function(
 }
 
 
-#' Simulate data from a sigmoid-multinomial-negativabinomial process
+#' Simulate data
 #'
 #' @param delta_magnitude the magnitude of the slope
 #' @param n_genes Number of genes to be simulated
