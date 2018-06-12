@@ -42,6 +42,17 @@
 #'
 NULL
 
+#' Formula parser
+#'
+#' @param fm A formula
+#' @return A character vector
+#'
+#'
+parse_formula <- function(fm) {
+	if(attr(terms(fm), "response") == 1) stop("The formula must be of the kind \"~ covariates\" ")
+	else as.character(attr(terms(fm), "variables"))[-1]
+}
+
 #' Perform generalised linear model on RNA seq data
 #'
 #' @param formula A formula
@@ -55,15 +66,13 @@ TABI_glm = function(
 	formula,
 	data,
 	link = "sigmoid",
+	prior = list(
+		prop_DE = rep(0.05, length(parse_formula(formula))) ,
+		scale_DE = rep(5, length(parse_formula(formula)))
+	)	,
 	iter = 500,
 	warmup = round(iter/2)
 ){
-
-	# Formula parser
-	parse_formula <- function(fm) {
-		if(attr(terms(fm), "response") == 1) stop("The formula must be of the kind \"~ covariates\" ")
-		else as.character(attr(terms(fm), "variables"))[-1]
-	}
 
 	# Scale design matrix
 	scale_design = function(df){
@@ -102,7 +111,7 @@ TABI_glm = function(
 		# Return the outcome of the model
 		switch(
 			link,
-			"sigmoid" = sigmoid_link(X, y, iter, warmup)
+			"sigmoid" = sigmoid_link(X, y, prior, iter, warmup)
 		)
 	)
 }

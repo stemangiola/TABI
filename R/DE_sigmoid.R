@@ -9,6 +9,7 @@
 sigmoid_link = function(
 	X,
 	y,
+	prior,
 	iter,
 	warmup
 ){
@@ -28,9 +29,9 @@ sigmoid_link = function(
 	# Horseshoe
 	nu_local = array(rep(1,R_1), dim=R_1)
 	nu_global = array(rep(45, R_1), dim=R_1)
-	par_ratio = array(rep(0.05, R_1), dim=R_1)
+	par_ratio = array(prior$prop_DE, dim=R_1)
 	slab_df = array(rep(4, R_1), dim=R_1)
-	slab_scale = array(rep(5, R_1), dim=R_1)
+	slab_scale = array(prior$scale_DE, dim=R_1)
 
 	# Run model
 	fit =
