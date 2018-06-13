@@ -2,10 +2,10 @@
 % Please edit documentation in R/DE_sigmoid.R
 \name{simulate_from_sigmoid}
 \alias{simulate_from_sigmoid}
-\title{Simulate data from a sigmoid-multinomial-negativabinomial process}
+\title{Simulate data}
 \usage{
 simulate_from_sigmoid(delta_magnitude = 5, n_genes = 100,
-  changing_genes = round(n_genes * 0.3))
+  changing_genes = round(n_genes * 0.3), hkg = round(n_genes * 0.3))
 }
 \arguments{
 \item{delta_magnitude}{the magnitude of the slope}
@@ -18,5 +18,5 @@ simulate_from_sigmoid(delta_magnitude = 5, n_genes = 100,
 A list
 }
 \description{
-Simulate data from a sigmoid-multinomial-negativabinomial process
+Simulate data
 }
