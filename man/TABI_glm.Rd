@@ -4,8 +4,9 @@
 \alias{TABI_glm}
 \title{Perform generalised linear model on RNA seq data}
 \usage{
-TABI_glm(formula, data, link = "sigmoid", iter = 500,
-  warmup = round(iter/2))
+TABI_glm(formula, data, link = "sigmoid", prior = list(prop_DE = rep(0.05,
+  length(parse_formula(formula))), scale_DE = rep(5,
+  length(parse_formula(formula)))), iter = 500, warmup = round(iter/2))
 }
 \arguments{
 \item{formula}{A formula}

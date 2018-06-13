@@ -45,12 +45,6 @@ sigmoid_link = function(
 			#, control=list(adapt_delta=0.95, stepsize = 0.05, max_treedepth =15)
 		)
 
-	# Produce output table
-	CI_df = fit %>%
-		gather_samples(beta[covariate, gene]) %>%
-		filter(covariate==2) %>%
-		mean_qi(.prob =  1 - (0.05 / G) )
-
 	#######################################
 	## Return
 	#######################################
@@ -60,21 +54,13 @@ sigmoid_link = function(
 		# All fits
 		fit = fit,
 
-		# Produce output table CI
-		CI_df = CI_df,
+		# Produce output table posterior
+		posterior_df = fit %>% gather_samples(beta[covariate_idx, gene_idx]),
 
 		# Generated quantities
 		generated_quantities = fit %>%
 			gather_samples(y_gen[sample_idx, gene_idx] ) %>%
-			mean_qi(),
-
-		# Plot of coefficient
-		p =
-			CI_df %>%
-			mutate(sig = !(conf.low <= 0 & conf.high >=0 )) %>%
-			filter(gene > F) %>%
-			ggplot(aes(x=gene, y=estimate, color=sig)) +
-			geom_errorbar(aes(ymin=conf.low, ymax=conf.high), width = 0)
+			mean_qi()
 
 	)
 
@@ -93,16 +79,10 @@ sigmoid_link = function(
 #'
 #' @export
 #'
-simulate_from_sigmoid = function(delta_magnitude = 5, n_genes = 100, changing_genes = round(n_genes*0.3), hkg = round(n_genes*0.3)){
+simulate_from_sigmoid = function(delta_magnitude = 5, n_genes = 100, changing_genes = round(n_genes*0.3), hkg = round(n_genes*0.3), n_samples = 13){
 
 	# Custom sigmoid
 	inv_logit_gen = function(x, k)     k / ( exp( - x  ) + 1 )
-
-	# number of changing genes
-	#changing_genes = round(n_genes * prop_canging)
-
-	# numbe rof samples
-	n_samples = 13
 
 	# Design matrix
 	X = model.matrix( ~ sort(runif(n_samples, -1, 1)))
