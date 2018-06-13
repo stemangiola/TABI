@@ -8,12 +8,7 @@ functions{
   }
 
  	int[] dirichlet_multinomial_rng(vector alpha, int exposure) {
-
-   	int K = rows(alpha);
-    vector[K] alpha_dir = dirichlet_rng(alpha);
-    int alpha_dir_mult[K] = multinomial_rng(alpha_dir, exposure);
-
-    return alpha_dir_mult;
+    return multinomial_rng(dirichlet_rng(alpha), exposure);
   }
 
   vector log_gen_inv_logit(row_vector y, vector inversion, vector intercept) {
