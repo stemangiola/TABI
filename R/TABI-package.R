@@ -118,14 +118,16 @@ TABI_glm = function(
 
 #' Plots the observed aganst the modelled read counts for a gene
 #'
-#' @param formula A formula
-#' @param data A tibble
-#' @param link A character string
+#' @param TABi_obj A TABI output object
+#' @param gene A character string
+#' @param covariate A character string
+#' @param CI A real number
+#'
 #' @return A tibble
 #'
 #' @export
 #'
-plot_generated_gene = function(TABi_obj, gene, covariate = colnames(TABi_obj$input.X)[2]){
+plot_generated_gene = function(TABi_obj, gene, covariate = colnames(TABi_obj$input.X)[2], CI = 1 - (0.05 / ncol(TABi_obj$input.y))){
 
 	TABi_obj$generated_quantities %>%
 
@@ -163,3 +165,46 @@ plot_generated_gene = function(TABi_obj, gene, covariate = colnames(TABi_obj$inp
 
 
 }
+
+#' Plots the posterior credible interval across all genes
+#'
+#' @param TABi_obj A TABI output object
+#' @param covariate A character string
+#' @param CI A real number
+#'
+#' @return A tibble
+#'
+#' @export
+#'
+plot_posterior = function(TABi_obj, covariate = colnames(TABi_obj$input.X)[2], CI = 1 - (0.05 / ncol(TABi_obj$input.y))){
+
+	TABi_obj$posterior_df %>%
+
+		# Filter covariate
+		filter(covariate_idx==which(colnames(TABi_obj$input.X) == !!covariate)) %>%
+
+		# Get statistics
+		mean_qi(.prob =  CI ) %>%
+
+		# Add gene names
+		left_join(
+			tibble(
+				gene_idx = 1:ncol(TABi_obj$input.y),
+				gene =     colnames(TABi_obj$input.y)
+			),
+			by = "gene_idx"
+		) %>%
+
+		# Attribute significance
+		mutate(sig = !(conf.low <= 0 & conf.high >=0 )) %>%
+
+		# Plot
+		ggplot(aes(x=gene, y=estimate, color=sig)) +
+		geom_errorbar(aes(ymin=conf.low, ymax=conf.high), width = 0) +
+		theme_bw()
+
+}
+
+
+
+
