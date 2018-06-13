@@ -2,6 +2,7 @@
 
 export(TABI_glm)
 export(plot_generated_gene)
+export(plot_posterior)
 export(simulate_from_sigmoid)
 import(Rcpp)
 import(methods)
