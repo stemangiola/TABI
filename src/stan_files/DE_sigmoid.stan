@@ -92,10 +92,11 @@ transformed parameters {
 	vector[G] beta1_trick[R_1];
 	vector[G] inversion;
 	matrix[R_1+1, G] beta;
-	matrix[T, G] y_hat;
+	matrix[T, G] X_beta;
+	vector[G] y_hat[T];
 
 	// Overdispersion
-	real xi = xi_z * 1000;
+	real xi;//vector[T] xi;
 
 	// Horseshoe calculation
 		beta1[1] =
@@ -123,7 +124,11 @@ transformed parameters {
 	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1_trick[r]);
 
 	// Matrix multiplication for speed up
-	y_hat = X * beta;
+	X_beta = X * beta;
+	for(t in 1:T) y_hat[t] = softmax( log_gen_inv_logit(X_beta[t], inversion, intercept) );
+
+	// Calculate precision
+	xi = xi_z * 10000;  //for(t in 1:T) xi[t] = (1 + xi_z) / min(y_hat[t]);
 
 }
 model {
