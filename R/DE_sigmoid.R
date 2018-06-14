@@ -27,11 +27,11 @@ sigmoid_link = function(
 	exposure = y %>% rowSums()
 
 	# Horseshoe
-	nu_local = array(rep(1,R_1), dim=R_1)
-	nu_global = array(rep(45, R_1), dim=R_1)
-	par_ratio = array(prior$prop_DE, dim=R_1)
-	slab_df = array(rep(4, R_1), dim=R_1)
-	slab_scale = array(prior$scale_DE, dim=R_1)
+	nu_local = 1
+	nu_global = 45
+	par_ratio = prior$prop_DE
+	slab_df = 4
+	slab_scale = prior$scale_DE
 
 	# Run model
 	fit =
