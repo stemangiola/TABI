@@ -1,7 +1,14 @@
 functions{
 
- real dirichlet_multinomial_lpmf(int[] y, vector alpha) {
-  real alpha_plus = sum(alpha);
+	real vectors_to_min(vector[] v, int K){
+		vector[K] my_min;
+
+		for(k in 1:K) my_min[k] = min(v[k]);
+
+		return min(my_min);
+	}
+ 	real dirichlet_multinomial_lpmf(int[] y, vector alpha) {
+  	real alpha_plus = sum(alpha);
 
     return lgamma(alpha_plus) + sum(lgamma(alpha + to_vector(y)))
                 - lgamma(alpha_plus+sum(y)) - sum(lgamma(alpha));
