@@ -67,8 +67,8 @@ TABI_glm = function(
 	data,
 	link = "sigmoid",
 	prior = list(
-		prop_DE = rep(0.05, length(parse_formula(formula))) ,
-		scale_DE = rep(5, length(parse_formula(formula)))
+		prop_DE =0.05,
+		scale_DE = 5
 	)	,
 	iter = 500,
 	warmup = round(iter/2)

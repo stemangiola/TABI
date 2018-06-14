@@ -51,33 +51,36 @@ data {
 	int exposure[T];                 // How many reads have been sequenced for each sample
 
 	// Horseshoe
-	vector < lower =0 >[R_1] par_ratio ; // proportion of 0s
-	vector < lower =1 >[R_1] nu_global ; // degrees of freedom for the half -t prior
-	vector < lower =1 >[R_1] nu_local ; // degrees of freedom for the half - t priors
-	vector < lower =0 >[R_1] slab_scale ; // slab scale for the regularized horseshoe
-	vector < lower =0 >[R_1] slab_df; // slab degrees of freedom for the regularized
+	real < lower =0 > par_ratio ; // proportion of 0s
+	real < lower =1 > nu_global ; // degrees of freedom for the half -t prior
+	real < lower =1 > nu_local ; // degrees of freedom for the half - t priors
+	real < lower =0 > slab_scale ; // slab scale for the regularized horseshoe
+	real < lower =0 > slab_df; // slab degrees of freedom for the regularized
 }
 
 transformed data{
-	vector < lower =0 >[R_1] scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
+	real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
 }
 
 parameters {
 	// Linear model
 	vector[G] inversion_z;
 	vector[G] intercept;
-	vector<lower=0>[G] sigma_trick; //Discourse [quote=\"stijn, post:2, topic:4201\"]
+	vector[G] beta1_z[R_1];
 
 	// Overdispersion of Dirichlet-multinomial
 	real<lower=0> xi_z;
 
 	// Horseshoe
-	vector [ G] beta1_z[R_1];
-	real < lower =0 > aux1_global[R_1] ;
-	real < lower =0 > aux2_global[R_1] ;
-	vector < lower =0 >[ G] aux1_local[R_1] ;
-	vector < lower =0 >[ G] aux2_local[R_1] ;
-	real < lower =0 > caux[R_1] ;
+	real < lower =0 > aux1_global ;
+	real < lower =0 > aux2_global ;
+	vector < lower =0 >[ G] aux1_local ;
+	vector < lower =0 >[ G] aux2_local ;
+	real < lower =0 > caux ;
+
+	// Non sparse sigma
+	vector<lower=0>[R_1-1] non_sparse_sigma;
+
 }
 
 transformed parameters {
@@ -92,18 +95,21 @@ transformed parameters {
 	real xi = xi_z * 1000;
 
 	// Horseshoe calculation
-	for(r in 1:R_1)
-		beta1[r] =
+		beta1[1] =
 			reg_horseshoe(
-				beta1_z[r],
-				aux1_global[r] ,
-				aux2_global[r],
-				aux1_local[r] ,
-				aux2_local[r] ,
-				caux[r],
-				scale_global[r],
-				slab_scale[r]
+				beta1_z[1],
+				aux1_global ,
+				aux2_global,
+				aux1_local ,
+				aux2_local ,
+				caux,
+				scale_global,
+				slab_scale
 			);
+
+	// Other non sparse priors
+	if(R_1 > 1)	for(r in 2:R_1)
+		beta1[r] = beta1_z[r] * non_sparse_sigma[r-1];
 
 	// trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
 	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick * 0.5;
@@ -119,28 +125,30 @@ transformed parameters {
 }
 model {
 
-	// Horseshoe
+	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
-	for(r in 1:R_1) aux1_local[r] ~ normal (0 , 1);
-	for(r in 1:R_1) aux2_local[r] ~ inv_gamma (0.5* nu_local[r] , 0.5* nu_local[r] );
+	inversion_z ~ normal(0 ,1);
+	intercept ~ normal(0,5);
+	sum(intercept) ~ normal(0, 0.01 * G);
+
+	// Horseshoe
+	aux1_local ~ normal (0 , 1);
+	aux2_local ~ inv_gamma (0.5* nu_local , 0.5* nu_local );
 	aux1_global ~ normal (0 , 1);
 	aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
 	caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
 
+	// Non sparse sigma
+	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
+
 	// Trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
 	sigma_trick ~ normal(0,1);
-	//for(r in 1:R_1) beta1[r] ~ normal(0,10);
-
-	// Linear system
-	inversion_z ~ normal(0 ,1);
-	intercept ~ normal(0,5);
-	sum(intercept) ~ normal(0, 0.01 * G);
 
 	// Overdispersion
 	xi_z ~ normal(0,1);
 
 	// Likelihood
-	for (t in 1:T) y[t] ~ dirichlet_multinomial( xi * softmax( log_gen_inv_logit(y_hat[t], inversion, intercept) ) );
+	for (t in 1:T) y[t] ~ dirichlet_multinomial( xi * y_hat[t] );
 
 }
 
@@ -148,5 +156,5 @@ generated quantities{
   int y_gen[T,G];          // RNA-seq counts
 
 	for (t in 1:T)
-			y_gen[t] = dirichlet_multinomial_rng( xi * softmax( log_gen_inv_logit(y_hat[t], inversion, intercept) ), exposure[t] );
+			y_gen[t] = dirichlet_multinomial_rng( xi * y_hat[t], exposure[t] );
 	}
