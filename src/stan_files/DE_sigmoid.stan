@@ -81,6 +81,9 @@ parameters {
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
 
+	// Sigma trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
+	vector<lower=0>[G] sigma_trick;
+
 }
 
 transformed parameters {
