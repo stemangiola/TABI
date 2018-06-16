@@ -35,9 +35,9 @@ sigmoid_link = function(
 
 	# Run model
 	fit =
-		#sampling(
-			#stanmodels$DE_sigmoid,
-			rstan::stan(file = "~/PhD/TABI/src/stan_files/DE_sigmoid.stan",
+		sampling(
+			stanmodels$DE_sigmoid,
+			#rstan::stan(file = "~/PhD/TABI/src/stan_files/DE_sigmoid.stan",
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
