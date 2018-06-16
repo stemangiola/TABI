@@ -28,11 +28,14 @@ sigmoid_link = function(
 	exposure = y %>% rowSums()
 
 	# Horseshoe
-	nu_local = array(rep(1,R_1), dim=R_1)
-	nu_global = array(rep(45, R_1), dim=R_1)
-	par_ratio = array(prior$prop_DE, dim=R_1)
-	slab_df = array(rep(4, R_1), dim=R_1)
-	slab_scale = array(prior$scale_DE, dim=R_1)
+	nu_local = 1
+	nu_global = 45
+	par_ratio = prior$prop_DE
+	slab_df = 4
+	slab_scale = prior$scale_DE
+
+	# Set inits
+	init.fn <- function(chain) list(xi_z=runif(1, 1, 2))
 
 	# Run model
 	fit =
@@ -42,7 +45,8 @@ sigmoid_link = function(
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
-			cores = 4
+			cores = 4,
+			init = init.fn
 			#, control=list(adapt_delta=0.95, stepsize = 0.05, max_treedepth =15)
 		)
 
@@ -84,7 +88,7 @@ sigmoid_link = function(
 #'
 #' @export
 #'
-simulate_from_sigmoid = function(delta_magnitude = 5, n_genes = 100, changing_genes = round(n_genes*0.3), hkg = round(n_genes*0.3), n_samples = 13){
+simulate_from_sigmoid = function(delta_magnitude = 5, n_genes = 100, changing_genes = round(n_genes*0.3), hkg = round(n_genes*0.3), n_samples = 13, precision_NB =20){
 
 	# Custom sigmoid
 	inv_logit_gen = function(x, k)     k / ( exp( - x  ) + 1 )
@@ -112,7 +116,7 @@ simulate_from_sigmoid = function(delta_magnitude = 5, n_genes = 100, changing_ge
 
 	# Produce tissue samples
 	y_real = foreach(n = 1:n_samples, .combine=bind_cols) %do% {
-		tibble(    rnbinom(n_genes, mu = exp(y_sigmoid[,n]), size = 100)    )
+		tibble(    rnbinom(n_genes, mu = exp(y_sigmoid[,n]), size = precision_NB)    )
 	} %>%
 		setNames(sprintf("s%s", 1:n_samples)) %>%
 		mutate_if(is.numeric, as.integer)
