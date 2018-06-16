@@ -33,6 +33,9 @@ sigmoid_link = function(
 	slab_df = 4
 	slab_scale = prior$scale_DE
 
+	# Set inits
+	init.fn <- function(chain) list(xi_z=runif(1, 1, 2))
+
 	# Run model
 	fit =
 		sampling(
@@ -41,7 +44,8 @@ sigmoid_link = function(
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
-			cores = 4
+			cores = 4,
+			init = init.fn
 			#, control=list(adapt_delta=0.95, stepsize = 0.05, max_treedepth =15)
 		)
 
