@@ -1,7 +1,19 @@
+#' Get the sigmoid model (intended for easy transition between development
+#' and release)
+#'
+#' @return The model
+#'
+get_sigmoid_model = function(){
+  #stanmodels$DE_sigmoid ##This should be the variant for release
+  rstan::stan_model(here::here("src","stan_files","DE_sigmoid.stan"))
+}
+  
+
 #' Perform generalised linear model on RNA seq data
 #'
 #' @param X A design matrix
 #' @param y A matrix of expression
+#' @param model can override the default model for tests/development
 #' @param house_keeping_genes A character string
 #' @return A list
 #'
@@ -12,7 +24,8 @@ sigmoid_link = function(
 	y,
 	prior,
 	iter,
-	warmup
+	warmup,
+	model = get_sigmoid_model()
 ){
 
 	#######################################
@@ -40,8 +53,7 @@ sigmoid_link = function(
 	# Run model
 	fit =
 		sampling(
-			stanmodels$DE_sigmoid,
-			#rstan::stan(file = "~/PhD/TABI/src/stan_files/DE_sigmoid.stan",
+      model,
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
