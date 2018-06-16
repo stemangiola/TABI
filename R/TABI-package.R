@@ -71,7 +71,8 @@ TABI_glm = function(
 		scale_DE = 5
 	)	,
 	iter = 500,
-	warmup = round(iter/2)
+	warmup = round(iter/2),
+	model = get_sigmoid_model()
 ){
 
 	# Scale design matrix
@@ -111,7 +112,7 @@ TABI_glm = function(
 		# Return the outcome of the model
 		switch(
 			link,
-			"sigmoid" = sigmoid_link(X, y, prior, iter, warmup)
+			"sigmoid" = sigmoid_link(X, y, prior, iter, warmup, model = model)
 		)
 	)
 }
