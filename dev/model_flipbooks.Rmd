@@ -46,3 +46,20 @@ for(i in 1:5) {
 }
 
 ```
+
+# Dirichlet-multinomial with softmax + log sigmoid link
+
+```{r}
+for(i in 1:5) {
+  data = full_simulator(10,20,
+                        horseshoe_hyperprior_params(10), 
+                        default_intercept_params(5, 3), 
+                        logsigmoid_link_params(15,3), 
+                        #linear_link_params(),
+                        dirichlet_multinom_likelihood_params(0.1)
+                        )
+
+  (plot_simulated(data) + ggtitle(paste("Draw",i))) %>% print()
+}
+
+```

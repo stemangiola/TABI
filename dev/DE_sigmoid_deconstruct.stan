@@ -22,7 +22,7 @@ data {
   // 1 - exp
   // 2 - Log. Sigmoid (inv. logit), plateau parametrized via value at x=0 (inversion).
   // 3 - Sigmoid (inv. logit) reparametrization (TODO describe)
-	int<lower=0,upper=2> link_type; 
+	int<lower=0,upper=3> link_type; 
 	
 	// Indicator for likelihood type
 	// 0 - normal (for basic tests)
@@ -53,6 +53,9 @@ data {
   real inversion_mean[link_type == 2 ? 1 : 0];
   real<lower=0> inversion_sigma[link_type == 2 ? 1 : 0];
 	
+  real mean_expression_mean[link_type == 3 ? 1 : 0];
+  real<lower=0> mean_expression_sigma[link_type == 3 ? 1 : 0];
+  
 	//Total number of sequenced samples for multinomial likelihood
 	int exposure[likelihood_type == 3 ? T : 0];
 	
@@ -77,6 +80,7 @@ parameters {
 	real<lower=0> horseshoe_sigma_z[hyperprior_type == 1 ? 1 : 0];
 
   vector[link_type == 2 ? G : 0] inversion_z;
+  vector[link_type == 3 ? G : 0] mean_expression_z;
 	
 	real<lower=0> xi_z;
 }
@@ -85,6 +89,7 @@ transformed parameters {
 
 	real<lower=0> horseshoe_sigma[hyperprior_type == 1 ? 1 : 0];
   vector<lower=0>[link_type == 2 ? G : 0] inversion;
+  vector<lower=0>[link_type == 3 ? G : 0] mean_expression;
 	vector[G] intercept;
   vector[G] beta1;
 	matrix[2, G] beta;
@@ -134,6 +139,13 @@ transformed parameters {
 	    y_hat[,g] = inversion[g] + log1p_exp(-intercept[g]) - log1p_exp(-X_beta[,g]);
 
 	  }
+	} else if(link_type == 3) {
+    mean_expression = exp(mean_expression_z * mean_expression_sigma[1] + mean_expression_mean[1]);
+    for(g in 1:G) {
+      vector[T] sigmoid_out = inv(1 + exp(-X_beta[,g]));
+      real plateau = mean_expression[g] / mean(sigmoid_out);
+      y_hat[,g] = plateau * sigmoid_out;
+    }
   } else {
     reject("Unknown link");
   }
@@ -164,6 +176,7 @@ model {
 
   //--------- Link function params ----
   inversion_z ~ normal(0, 1);
+  mean_expression_z ~ normal(0,1);
 
 	//---------Likelihood----------------
 	if(likelihood_type == 0) {

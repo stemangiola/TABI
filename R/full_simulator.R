@@ -203,12 +203,15 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
 
   if (link_params$type == "sigmoid") {
     recognized_link = TRUE
-    true$mean_expression = rlnorm(n_genes, link_params$mean_expression_mean, link_params$mean_expression_sigma)
-    
+    #TODO check
+    #true$mean_expression = rlnorm(n_genes, link_params$mean_expression_mean, link_params$mean_expression_sigma)
+    true$mean_expression = exp(rnorm(n_genes) * link_params$mean_expression_sigma + link_params$mean_expression_mean)
+
     y_hat <- matrix(-Inf, nrow = n_tubes, ncol = n_genes)
     for(g in 1:n_genes) {
-      plateau = true$mean_expression[g] / mean(1 / (1 + exp(true$linear_predictor[,g])  ))
-      y_hat[, g] = plateau / (1 + exp(-true$linear_predictor[,g])  )
+      sigmoid_out = 1 / (1 + exp(-true$linear_predictor[,g])  )
+      plateau = true$mean_expression[g] / mean(sigmoid_out)
+      y_hat[, g] = plateau * sigmoid_out
     }
     
     observed$link_type = 3    
@@ -258,6 +261,7 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
   if(likelihood_params$type == "neg_binomial") {
     recognized_likelihood = TRUE
     observed$y = rnbinom(n_tubes * n_genes, mu = y_hat, size = true$xi)  %>% matrix(ncol = n_genes, nrow = n_tubes)  
+    observed$likelihood_type = 2
   } 
   
   if(likelihood_params$type == "dirichlet_multinom") {
@@ -273,6 +277,7 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
       dirichlet_draw = MCMCpack::rdirichlet(1, softmax(y_hat[t,]))
       observed$y[t,] = rmultinom(1, observed$exposure[t], dirichlet_draw)
     }
+    observed$likelihood_type = 3
   } else {
     observed$exposure = integer(0)
   }
