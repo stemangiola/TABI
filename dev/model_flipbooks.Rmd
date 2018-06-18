@@ -1,0 +1,48 @@
+---
+title: "Flip books of models + priors"
+output: html_notebook
+---
+
+```{r setup}
+devtools::load_all(".")
+library(rstan)
+library(here)
+library(shinystan)
+library(tidyverse)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+```
+
+# Negative binomial with exponential link
+
+```{r}
+for(i in 1:5) {
+  data = full_simulator(10,20,
+                        horseshoe_hyperprior_params(10), 
+                        default_intercept_params(3, 3), 
+                        exp_link_params(), 
+                        #linear_link_params(),
+                        neg_binomial_likelihood_params(2)
+                        )
+
+  (plot_simulated(data) + ggtitle(paste("Draw",i))) %>% print()
+}
+
+```
+
+# Negative binomial with sigmoid link
+
+```{r}
+for(i in 1:5) {
+  data = full_simulator(10,20,
+                        horseshoe_hyperprior_params(10), 
+                        default_intercept_params(0.5, 0.3), #intercept here is the location of the inflection point
+                        sigmoid_link_params(5,3), 
+                        #linear_link_params(),
+                        neg_binomial_likelihood_params(2)
+                        )
+
+  (plot_simulated(data) + ggtitle(paste("Draw",i))) %>% print()
+}
+
+```

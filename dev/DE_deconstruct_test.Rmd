@@ -20,42 +20,15 @@ model = stan_model(file = here("dev","DE_sigmoid_deconstruct.stan"))
 
 
 ```{r}
-data = full_simulator(5,30,horseshoe_hyperprior_params(1),default_intercept_params(0, 1), linear_link_params(), normal_likelihood_params(0.1))
+data = full_simulator(10,30,horseshoe_hyperprior_params(20), default_intercept_params(0.5, 0.3), sigmoid_link_params(4,2), normal_likelihood_params(0.1))
 
-fit <- sampling(model, data = data$observed)
+plot_simulated(data)
+
+fit <- sampling(model, data = data$observed, control = list(adapt_delta = 0.9))
 
 evaluation_summary(rstan::extract(fit),true_params = data$true)
 ```
-```{r}
-data$true$linear_predictor
-data$observed$y_real
-```
 
 
-```{r}
-data$true$linear_predictor
-data$true$xi  
-data$observed$y_real
-summary(fit, pars = c("y_hat", "xi"))$summary
-```
 
-```{r}
-X_with_intercept = array(-1, c(data$observed$T, 2))
-X_with_intercept[,1] = 1
-X_with_intercept[,2] = data$observed$X
-
-beta = array(-1, c(2, data$observed$G))
-beta[1,] = data$true$intercept
-beta[2,] = data$true$beta1
-
-X_with_intercept %*% beta
-
-#data$true$intercept
-#data$observed$X %*% t(data$true$beta1)
-
-data$true$linear_predictor
-
-#beta
-#X_with_intercept
-```
 
