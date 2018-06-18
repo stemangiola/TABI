@@ -14,6 +14,10 @@ horseshoe_hyperprior_params <- function(tau) {
   data.frame(type = "horseshoe",tau) 
 }
 
+no_hyperprior_params <- function(sigma) {
+  data.frame(type = "no", sigma)
+}
+
 default_intercept_params <- function(mean, sigma) {
   data.frame(mean, sigma)
 }
@@ -40,29 +44,59 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
   observed$T = n_tubes
   
   # 1. Draw from hyperprior
+  recognized_hyperprior = FALSE
+  if(hyperprior_params$type == "no") {
+    true$beta1 = rnorm(n_genes, 0, hyperprior_params$sigma)
+    
+    observed$beta_sigma = array(hyperprior_params$sigma, 1)
+    observed$hyperprior_type = 0
+    
+    recognized_hyperprior = TRUE
+  } else {
+    observed$beta_sigma = numeric(0)
+  }
+  
   if(hyperprior_params$type == "horseshoe") {
     true$horseshoe_sigma = abs(rnorm(1, 0, hyperprior_params$tau))
     true$beta1 = rnorm(n_genes, 0, true$horseshoe_sigma)
     
-    observed$horseshoe_tau = hyperprior_params$tau
+    observed$horseshoe_tau = array(hyperprior_params$tau, 1)
+    observed$hyperprior_type = 1
+    
+    recognized_hyperprior = TRUE
   } else {
+    observed$horseshoe_tau = numeric(0)
+  }
+
+  if(!recognized_hyperprior) {
     stop("Unrecognized hyperprior type: ",hyperprior_params$type)
   }
   
+    
   # 2. Draw the intercepts
   true$intercept = rnorm(n_genes, intercept_params$mean, intercept_params$sigma)
   
   observed$intercept_mean = intercept_params$mean
   observed$intercept_sigma = intercept_params$sigma
   
-  # 3. Link function
-  linear_predictor = true$intercept + observed$X %*% t(true$beta1)
-  true$linear_predictor = linear_predictor
+  # 3. Linear predictor (X_beta in model)
+  X_with_intercept = array(-Inf, c(n_tubes, 2))
+  X_with_intercept[,1] = 1
+  X_with_intercept[,2] = observed$X
+  
+  beta = array(-Inf, c(2, n_genes))
+  beta[1,] = true$intercept
+  beta[2,] = true$beta1
+  
+  true$linear_predictor = X_with_intercept %*% beta
+  
+  
+  # 4. Link function
   if(link_params$type == "linear") {
-    y_hat = linear_predictor
+    y_hat = true$linear_predictor
     observed$link_type = 0
   } else if(link_params$type == "exp") {
-    y_hat = exp(linear_predictor)
+    y_hat = exp(true$linear_predictor)
     observed$link_type = 1
   } else {
     stop("Unrecognized link function:", link_params$type)
