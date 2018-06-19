@@ -74,9 +74,10 @@ parameters {
 	vector[G] inversion_z;
 	vector[G] intercept;
 	vector[G] beta1_z[R_1];
+	vector[G] alpha_gamma_z[T];
 
 	// Overdispersion of Dirichlet-multinomial
-	real<lower=0> xi_z;
+	real<lower=0> overdispersion;
 
 	// Horseshoe
 	real < lower =0 > aux1_global ;
@@ -101,9 +102,7 @@ transformed parameters {
 	matrix[R_1+1, G] beta;
 	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
-
-	// Overdispersion
-	real xi;//vector[T] xi;
+	vector[G] alpha_gamma[T];
 
 	// Horseshoe calculation
 		beta1[1] =
@@ -132,10 +131,10 @@ transformed parameters {
 
 	// Matrix multiplication for speed up
 	X_beta = X * beta;
-	for(t in 1:T) y_hat[t] = softmax( log_gen_inv_logit(X_beta[t], inversion, intercept) );
+	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion, intercept) ;
 
-	// Calculate precision
-	xi = xi_z * 10000;  //for(t in 1:T) xi[t] = (1 + xi_z) / min(y_hat[t]);
+	// Overdispersion
+	for(t in 1:T) alpha_gamma[t] = y_hat[t] + alpha_gamma_z[t] * exp(overdispersion);
 
 }
 model {
@@ -160,10 +159,11 @@ model {
 	sigma_trick ~ normal(0,1);
 
 	// Overdispersion
-	xi_z ~ normal(0,1);
+	overdispersion ~ normal(0, 1);
 
 	// Likelihood
-	for (t in 1:T) y[t] ~ dirichlet_multinomial( xi * y_hat[t] );
+	for(t in 1:T) alpha_gamma_z[t] ~ normal(0, 1);
+	for (t in 1:T) y[t] ~ multinomial( softmax( alpha_gamma[t] ) );
 
 }
 
@@ -171,5 +171,5 @@ generated quantities{
   int y_gen[T,G];          // RNA-seq counts
 
 	for (t in 1:T)
-			y_gen[t] = dirichlet_multinomial_rng( xi * y_hat[t], exposure[t] );
+			y_gen[t] = multinomial_rng( softmax ( alpha_gamma[t] ), exposure[t] );
 	}
