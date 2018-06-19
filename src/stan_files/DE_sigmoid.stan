@@ -77,7 +77,8 @@ parameters {
 	vector[G] alpha_gamma_z[T];
 
 	// Overdispersion of Dirichlet-multinomial
-	real<lower=0> overdispersion;
+	real overdispersion;
+	real overdispersion_slope;
 
 	// Horseshoe
 	real < lower =0 > aux1_global ;
@@ -103,6 +104,8 @@ transformed parameters {
 	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
 	vector[G] alpha_gamma[T];
+
+	//real overdispersion_slope = 0;
 
 	// Horseshoe calculation
 		beta1[1] =
@@ -134,7 +137,7 @@ transformed parameters {
 	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion, intercept) ;
 
 	// Overdispersion
-	for(t in 1:T) alpha_gamma[t] = y_hat[t] + alpha_gamma_z[t] * exp(overdispersion);
+	for(t in 1:T) alpha_gamma[t] = y_hat[t] + alpha_gamma_z[t] .* exp( overdispersion + y_hat[t] * overdispersion_slope);
 
 }
 model {
@@ -160,6 +163,7 @@ model {
 
 	// Overdispersion
 	overdispersion ~ normal(0, 1);
+	overdispersion_slope ~ normal(0, 0.01);
 
 	// Likelihood
 	for(t in 1:T) alpha_gamma_z[t] ~ normal(0, 1);
