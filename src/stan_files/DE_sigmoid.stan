@@ -77,7 +77,7 @@ parameters {
 	vector[G] alpha_gamma_z[T];
 
 	// Overdispersion of Dirichlet-multinomial
-	real<lower=0> overdispersion;
+	real overdispersion;
 
 	// Horseshoe
 	real < lower =0 > aux1_global ;
