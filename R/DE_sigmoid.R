@@ -7,7 +7,7 @@ get_sigmoid_model = function(){
   #stanmodels$DE_sigmoid ##This should be the variant for release
   rstan::stan_model(here::here("src","stan_files","DE_sigmoid.stan"))
 }
-  
+
 
 #' Perform generalised linear model on RNA seq data
 #'
@@ -25,7 +25,12 @@ sigmoid_link = function(
 	prior,
 	iter,
 	warmup,
-	model = get_sigmoid_model()
+	model = get_sigmoid_model(),
+	control=list(
+		adapt_delta=0.8,
+		stepsize = 0.1,
+		max_treedepth =10
+	)
 ){
 
 	#######################################
@@ -58,8 +63,8 @@ sigmoid_link = function(
 			warmup = warmup,
 			chains = 4,
 			cores = 4,
-			init = init.fn
-			#, control=list(adapt_delta=0.95, stepsize = 0.05, max_treedepth =15)
+			init = init.fn,
+			control = control
 		)
 
 	#######################################

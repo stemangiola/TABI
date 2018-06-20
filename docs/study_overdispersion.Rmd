@@ -1,0 +1,783 @@
+---
+title: "Modelling overdispersion"
+author: "Mangiola Stefano"
+date: "15/06/2018"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    code_folding: hide
+  github_document:
+    toc: yes
+    toc_depth: 3
+linkcolor: magenta
+urlcolor: magenta
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, results='hide', include=FALSE}
+library(foreach)
+library(tidyverse)
+library(doParallel)
+registerDoParallel()
+```
+
+Here I show at what extent we can approximate overdispersed poisson with negative binomial or gamma distributions
+
+## Both negative binomial and gamma can limit to a poisson
+
+```{r limit_to_poisson}
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Gamma
+	foreach(m = mm, .combine = bind_rows) %do% {
+	s=1
+
+	x = rgamma(10000,shape = m * s, rate = s)
+	
+	c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>% 
+	rename("gamma" = `variance.10%`) %>% 
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=1000000
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% 
+			rename("nb" = `variance.10%`),
+	by="mean"
+	) %>%
+		
+	# Poisson
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			
+			x = rpois(10000, lambda = m)
+			
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("pois" = `variance.10%`),
+		by="mean"
+	) %>%
+		gather(label, variance, -mean) 
+
+```
+
+
+```{r}
+my_df %>% ggplot(aes(x=mean, y=variance, color=label)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+
+However gamma and negative binomial introduce overdispersion "generalising" the relation between expected value and variance of the poisson in a different way
+
+## Gamma with increasing overdispersion - fixing rate  
+**rgamma(10000,shape = m * s, rate = s)**  
+
+```{r gamma}
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Gamma
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s=1
+		x = rgamma(10000,shape = m * s, rate = s)
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>% 
+	rename("1" = `variance.10%`) %>% 
+		
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=0.8
+			x = rgamma(10000,shape = m * s, rate = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("0.8" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=0.6
+			x = rgamma(10000,shape = m * s, rate = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("0.6" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=0.4
+			x = rgamma(10000,shape = m * s, rate = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("0.4" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=0.2
+			x = rgamma(10000,shape = m * s, rate = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("0.2" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=0.1
+			x = rgamma(10000,shape = m * s, rate = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("0.1" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Poisson
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			
+			x = rpois(10000, lambda = m)
+			
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("pois" = `variance.10%`),
+		by="mean"
+	) %>%
+		gather(rate_param_R_gamma, variance, -mean) 
+
+```
+
+
+```{r}
+my_df %>% ggplot(aes(x=mean, y=variance, color=rate_param_R_gamma)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+## Negative binomial with increasing overdispersion  
+**rnbinom(10000, mu = m, size = s)**  
+
+```{r negative_binomial}
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Negative binomial
+	foreach(m = mm, .combine = bind_rows) %do% {
+			s=50000
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% 
+	rename("50000" = `variance.10%`) %>% 
+		
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=20000
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("20000" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=10000
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("10000" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=5000
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("5000" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=1000
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("1000" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=500
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("500" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Poisson
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			
+			x = rpois(10000, lambda = m)
+			
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("pois" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+		gather(size_param_R_nb, variance, -mean) 
+
+```
+
+```{r}
+my_df %>% ggplot(aes(x=mean, y=variance, color=size_param_R_nb)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+## Log normal with increasing SD  
+**exp(rnorm(10000, log(m), log(s)))**  
+
+```{r log normal}
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Negative binomial
+	foreach(m = mm, .combine = bind_rows) %do% {
+			s=1.02
+			x = exp(rnorm(10000, log(m), log(s)))
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% 
+	rename("1.02" = `variance.10%`) %>% 
+		
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=1.03
+			x = exp(rnorm(10000, log(m), log(s)))
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("1.03" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=1.04
+			x = exp(rnorm(10000, log(m), log(s)))
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("1.04" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=1.05
+			x = exp(rnorm(10000, log(m), log(s)))
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("1.05" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=1.06
+			x = exp(rnorm(10000, log(m), log(s)))
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("1.06" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Negative binomial
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=1.07
+			x = exp(rnorm(10000, log(m), log(s)))
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("1.07" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Poisson
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			
+			x = rpois(10000, lambda = m)
+			
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("pois" = `variance.10%`),
+		by="mean"
+	) %>%
+		gather(sd, variance, -mean) 
+
+```
+
+
+```{r}
+my_df %>% ggplot(aes(x=mean, y=variance, color=sd)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+## poisson + Gamma + negative binomial + log-normal
+
+Gamma and negative binomial reach same level of overdispersion with two different trajectories
+
+```{r gamma and negative_binomial}
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Negative binomial
+	foreach(m = mm, .combine = bind_rows) %do% {
+			s=3000
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("negative binomial" = `variance.10%`) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=0.4
+			x = rgamma(10000,shape = m * s, rate = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("gamma" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Log-normal
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=1.025
+			x = exp(rnorm(10000, log(m), log(s)))
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("log-normal" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Poisson
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			
+			x = rpois(10000, lambda = m)
+			
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("pois" = `variance.10%`),
+		by="mean"
+	) %>%
+	gather(Label, variance, -mean) 
+
+```
+
+
+```{r}
+my_df %>% ggplot(aes(x=mean, y=variance, color=Label)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+
+```{r gamma reparametrised, echo=FALSE, eval=FALSE}
+
+## Reparametrise the gamma 
+
+#to have constant SD and apply a linear dependence between SD and mean
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Gamma
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s=1
+		s = s + 0.3 * m
+		
+		v = s^2;
+		shape = m^2 / v;
+		rate = m / v;
+		
+		x = rgamma(10000,shape = shape, rate = rate)
+			
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>% 
+	rename("0.3" = `variance.10%`) %>% 
+		
+	# Gamma
+	left_join(
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s=1
+		s = s + 0.25 * m
+		
+		v = s^2;
+		shape = m^2 / v;
+		rate = m / v;
+		
+		x = rgamma(10000,shape = shape, rate = rate)
+			
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>% rename("0.25" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s=1
+		s = s + 0.20 * m
+		
+		v = s^2;
+		shape = m^2 / v;
+		rate = m / v;
+		
+		x = rgamma(10000,shape = shape, rate = rate)
+			
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("0.20" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s=1
+		s = s + 0.15 * m
+		
+		v = s^2;
+		shape = m^2 / v;
+		rate = m / v;
+		
+		x = rgamma(10000,shape = shape, rate = rate)
+			
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("0.15" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s=1
+		s = s + 0.10 * m
+		
+		v = s^2;
+		shape = m^2 / v;
+		rate = m / v;
+		
+		x = rgamma(10000,shape = shape, rate = rate)
+			
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>% rename("0.10" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s=1
+		s = s + 0.05 * m
+		
+		v = s^2;
+		shape = m^2 / v;
+		rate = m / v;
+		
+		x = rgamma(10000,shape = shape, rate = rate)
+			
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("0.05" = `variance.10%`),
+		by="mean"
+	) %>%
+		gather(multiplic_factor, variance, -mean) 
+
+```
+
+
+```{r, echo=FALSE, eval=FALSE}
+my_df %>% ggplot(aes(x=mean, y=variance, color=multiplic_factor)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+
+```{r gemme reparam, gamma and negative_binomial, echo=FALSE, eval=FALSE}
+
+## Gamma reparametrised + gamma + negative binomial
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Negative binomial
+	foreach(m = mm, .combine = bind_rows) %do% {
+			s=3000
+			x = rnbinom(10000, mu = m, size = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("negative binomial" = `variance.10%`) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s=10
+		s = (s + 0.02 * m) 
+		
+		v = s^2;
+		shape = m^2 / v;
+		rate = m / v;
+		
+		x = rgamma(10000,shape = shape, rate = rate)
+			
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("gamma_reparam" = `variance.10%`),
+		by="mean"
+	) %>% 
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			s=0.4
+			x = rgamma(10000,shape = m * s, rate = s)
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		}  %>% rename("gamma" = `variance.10%`),
+		by="mean"
+	) %>% 
+	gather(Label, variance, -mean) 
+
+```
+
+
+```{r, echo=FALSE, eval=FALSE}
+my_df %>% ggplot(aes(x=mean, y=variance, color=Label)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+## Gamma with added variance dependence - slope changing   
+
+**s= 2^(0 + 0* (1/max(mm)) * m)**  
+**rgamma(10000,shape =  m * (1/s), rate = (1/s))**  
+
+```{r gamma slope}
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Gamma
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s= 2^(0 + 0* (1/max(mm)) * m)
+		x = rgamma(10000,shape =  m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>% 
+	rename("0" = `variance.10%`) %>% 
+		
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 2^(0 + 0.5* (1/max(mm)) * m)
+		x = rgamma(10000,shape =  m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("0.5" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 2^(0 + 1* (1/max(mm)) * m)
+		x = rgamma(10000,shape =  m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("1" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 2^(0 + 1.5* (1/max(mm)) * m)
+		x = rgamma(10000,shape =  m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("1.5" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 2^(0 + 2* (1/max(mm)) * m)
+		x = rgamma(10000,shape =  m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("2" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 2^(0 + 3* (1/max(mm)) * m)
+		x = rgamma(10000,shape =  m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("3" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Poisson
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			
+			x = rpois(10000, lambda = m)
+			
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("pois" = `variance.10%`),
+		by="mean"
+	) %>%
+		gather(slope, variance, -mean) 
+
+```
+
+
+```{r}
+my_df %>% ggplot(aes(x=mean, y=variance, color=slope)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+```{r gamma intercept, echo=FALSE, eval=FALSE}
+
+## Gamma with added variance dependence - intercept changing
+
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Gamma
+	foreach(m = mm, .combine = bind_rows) %do% {
+		s= 0 + 2^(1* (1/max(mm)) * m)
+		x = rgamma(10000,shape = 1+ m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>% 
+	rename("0" = `variance.10%`) %>% 
+		
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 1 + 2^(1* (1/max(mm)) * m)
+		x = rgamma(10000,shape = 1+ m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("0.5" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 2 + 2^(1* (1/max(mm)) * m)
+		x = rgamma(10000,shape = 1+ m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("1" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 3 + 2^(1* (1/max(mm)) * m)
+		x = rgamma(10000,shape = 1+ m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("1.5" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 4 + 2^(1* (1/max(mm)) * m)
+		x = rgamma(10000,shape = 1+ m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("2" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Gamma
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+		s= 10 + 2^(1* (1/max(mm)) * m)
+		x = rgamma(10000,shape = 1+ m * (1/s), rate = (1/s))
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	}  %>% rename("3" = `variance.10%`),
+		by="mean"
+	) %>%
+	
+	# Poisson
+	left_join(
+		foreach(m = mm, .combine = bind_rows) %do% {
+			
+			x = rpois(10000, lambda = m)
+			
+			c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+		} %>% rename("pois" = `variance.10%`),
+		by="mean"
+	) %>%
+		gather(intercept, variance, -mean) 
+
+```
+
+
+```{r, echo=FALSE, eval=FALSE}
+my_df %>% ggplot(aes(x=mean, y=variance, color=intercept)) + ylab("abs(quantile(x, 0.1) - quantile(x, 0.9))") + geom_line() + theme_bw() 
+```
+
+## Negative binomial with added variance dependence - slope changing  
+
+**s= 5000 / 2^(0.0005 * m)**  
+**x = rnbinom(10000, mu = m, size =  s )**  
+
+```{r negative binomial slope}
+
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+
+foreach(m = mm, .combine = bind_rows) %do% {
+		s= 5000 / 2^(0.0005 * m)
+		x = rnbinom(10000, mu = m, size =  s )
+
+		c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>% ggplot(aes(x=mean, y=`variance.10%`)) + geom_line() + theme_bw() 
+	
+
+
+```
+
+## Dirichlet
+
+
+```{r dirichlet}
+library(gtools)
+mm = c(seq(2, 10, 1), seq(10, 5000, 10))
+my_df = 
+	
+	# Gamma
+	foreach(m = mm, .combine = bind_rows) %dopar% {
+		
+		a = rep(100, 100)
+		a[1] = m
+		a = a/sum(a)
+		s = 1 * 1/min(a)
+		
+		x = rdirichlet(10000, a * s)[,1]
+				c(mean = m, variance = abs(quantile(x, 0.1) - quantile(x, 0.9)))
+	} %>%
+		gather(intercept, variance, -mean) 
+
+```
+
+
+```{r}
+my_df %>% ggplot(aes(x=mean, y=variance, color=intercept)) + geom_line() + theme_bw() 
+```
+
+
+
+
+
+
+
