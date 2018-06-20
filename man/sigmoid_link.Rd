@@ -4,7 +4,8 @@
 \alias{sigmoid_link}
 \title{Perform generalised linear model on RNA seq data}
 \usage{
-sigmoid_link(X, y, prior, iter, warmup, model = get_sigmoid_model())
+sigmoid_link(X, y, prior, iter, warmup, model = get_sigmoid_model(),
+  control = list(adapt_delta = 0.8, stepsize = 0.1, max_treedepth = 10))
 }
 \arguments{
 \item{X}{A design matrix}
