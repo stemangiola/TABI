@@ -1,23 +1,5 @@
 functions{
 
-	real vectors_to_min(vector[] v, int K){
-		vector[K] my_min;
-
-		for(k in 1:K) my_min[k] = min(v[k]);
-
-		return min(my_min);
-	}
- 	real dirichlet_multinomial_lpmf(int[] y, vector alpha) {
-  	real alpha_plus = sum(alpha);
-
-    return lgamma(alpha_plus) + sum(lgamma(alpha + to_vector(y)))
-                - lgamma(alpha_plus+sum(y)) - sum(lgamma(alpha));
-  }
-
- 	int[] dirichlet_multinomial_rng(vector alpha, int exposure) {
-    return multinomial_rng(dirichlet_rng(alpha), exposure);
-  }
-
   vector log_gen_inv_logit(row_vector y, vector inversion, vector intercept) {
     return  intercept + log1p_exp(-inversion) - log1p_exp(- to_vector(y)  ) ;
   }
