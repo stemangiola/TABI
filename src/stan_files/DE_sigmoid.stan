@@ -103,6 +103,7 @@ transformed parameters {
 	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
 	vector[G] alpha_gamma[T];
+	real<lower=0> exp_overdispersion;
 
 	// Horseshoe calculation
 		beta1[1] =
@@ -134,7 +135,8 @@ transformed parameters {
 	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion, intercept) ;
 
 	// Overdispersion
-	for(t in 1:T) alpha_gamma[t] = y_hat[t] + alpha_gamma_z[t] * exp(overdispersion);
+	exp_overdispersion = exp(overdispersion);
+	for(t in 1:T) alpha_gamma[t] = y_hat[t] + alpha_gamma_z[t] * exp_overdispersion;
 
 }
 model {
@@ -169,7 +171,10 @@ model {
 
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
+	vector[G] y_hat_od[T];      // Overdispersed y_hat
 
+	for (t in 1:T) for(g in 1:G)
+		y_hat_od[t,g] = normal_rng( y_hat[t,g] , exp_overdispersion );
 	for (t in 1:T)
-			y_gen[t] = multinomial_rng( softmax ( alpha_gamma[t] ), exposure[t] );
+		y_gen[t] = multinomial_rng( softmax ( y_hat_od[t] ), exposure[t] );
 	}
