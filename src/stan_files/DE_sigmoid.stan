@@ -106,7 +106,7 @@ transformed parameters {
 
 	// trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
 	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick / 2;
-	inversion_trick = inversion .* sigma_trick / 2;
+	for(g in 1:G) inversion_trick[g] = inversion[g] .* fmin(1.0, sigma_trick[g]) / 2; // push to zero if zero slope, otherwise give unitary sd
 
 	// make beta
 	beta[1] = to_row_vector(inversion_trick);
@@ -126,7 +126,6 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
 	inversion ~ normal(0 ,1);
-	inversion_trick ~ normal(0,1);
 	intercept ~ normal(0,5);
 	sum(intercept) ~ normal(0, 0.01 * G);
 
