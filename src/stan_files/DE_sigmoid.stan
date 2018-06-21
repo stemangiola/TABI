@@ -53,7 +53,7 @@ transformed data{
 
 parameters {
 	// Linear model
-	vector[G] inversion_z;
+	vector[G] inversion;
 	vector[G] intercept;
 	vector[G] beta1_z[R_1];
 	vector[G] alpha_gamma_z[T];
@@ -80,7 +80,7 @@ transformed parameters {
 
 	vector[G] beta1[R_1];
 	vector[G] beta1_trick[R_1];
-	vector[G] inversion;
+	vector[G] inversion_trick;
 	matrix[R_1+1, G] beta;
 	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
@@ -105,11 +105,11 @@ transformed parameters {
 		beta1[r] = beta1_z[r] * non_sparse_sigma[r-1];
 
 	// trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick * 0.5;
-	inversion = inversion_z .* sigma_trick * 0.5;
+	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick / 2;
+	inversion_trick = inversion .* sigma_trick / 2;
 
 	// make beta
-	beta[1] = to_row_vector(inversion);
+	beta[1] = to_row_vector(inversion_trick);
 	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1_trick[r]);
 
 	// Matrix multiplication for speed up
@@ -125,7 +125,8 @@ model {
 
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
-	inversion_z ~ normal(0 ,1);
+	inversion ~ normal(0 ,1);
+	inversion_trick ~ normal(0,1);
 	intercept ~ normal(0,5);
 	sum(intercept) ~ normal(0, 0.01 * G);
 
