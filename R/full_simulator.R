@@ -61,9 +61,13 @@ no_hyperprior_params <- function(sigma) {
 }
 
 default_intercept_params <- function(mean, sigma) {
-  data.frame(mean, sigma)
+  sum_to_zero_intercept_params(mean, sigma, NULL)
 }
 
+sum_to_zero_intercept_params <- function(mean, sigma, sum_to_zero_sd_per_gene) {
+  data.frame(mean, sigma, sum_to_zero_sd_per_gene)
+}
+ 
 normal_likelihood_params <- function(xi_sigma) {
   data.frame(type = "normal", xi_sigma)
 }
@@ -79,6 +83,11 @@ neg_binomial_likelihood_params <- function(xi_sigma) {
 dirichlet_multinom_likelihood_params <- function(xi_sigma) {
   data.frame(type = "dirichlet_multinom", xi_sigma)
 }
+
+normal_multinom_likelihood_params <- function(xi_sigma) {
+  data.frame(type = "normal_multinom", xi_sigma)
+}
+
 
 
 linear_link_params <- function() {
@@ -147,8 +156,32 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     
   # 2. Draw the intercepts
   true$intercept = rnorm(n_genes, intercept_params$mean, intercept_params$sigma)
+  
+  if(!is.null(intercept_params$sum_to_zero_sd_per_gene)) {
+    #TODO model code does not support sum to zero
+    
+    # A hacky approximate way to enforce the weak sum to zero constraint:
+    # Draw the final intercept sum
+    true$intercept_sum = rnorm(1, 0, n_genes * intercept_params$sum_to_zero_sd_per_gene)
+    
+    # Split the difference between the actual sum and the desired sum randomly 
+    # Across the intercepts.
+    intercept_change = true$intercept_sum - sum(true$intercept) 
+    
+    #Pick random points on the interval to form split points
+    splits = c(0, sort(runif(n_genes - 1,0, abs(intercept_change))), intercept_change)
+    diffs = diff(splits) * sign(intercept_change)
+    true$intercept = true$intercept + diffs
+    
+    observed$sum_to_zero = 1
+    observed$sum_to_zero_sd_per_gene = intercept_params$sum_to_zero_sd_per_gene
+  } else {
+    observed$sum_to_zero = 0
+    observed$sum_to_zero_sd_per_gene = numeric(0)
+  }
+  
   if(link_params$type == "sigmoid") { 
-    #Interpet intercept as the location of the inflection point
+    #Interpret intercept as the location of the inflection point
     true$intercept_raw = true$intercept
     true$intercept = - true$intercept_raw * true$beta1
   }
@@ -188,9 +221,8 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     true$inversion = rnorm(n_genes, link_params$inversion_mean, link_params$inversion_sigma)
     y_hat <- matrix(-Inf, nrow = n_tubes, ncol = n_genes)
     for(g in 1:n_genes) {
-      #TODO: there probably should be log(true$inversion[g]) AND inversion should be forced to be positive
-      #TODO: the same in model code
-      y_hat[, g] = true$inversion[g] + log1pexp(-true$intercept[g]) -  log1pexp(-true$linear_predictor[,g])
+      #TODO: the model code is not matching
+      y_hat[, g] = true$intercept[g] + log1pexp(-true$inversion[g]) -  log1pexp(-true$linear_predictor[,g])
     }
 
     observed$link_type = 2    
@@ -228,10 +260,12 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
   if(!recognized_link) {
     stop("Unrecognized link function:", link_params$type)
   }
+
+  true$xi = abs(rnorm(1, 0, likelihood_params$xi_sigma))
+  observed$xi_sigma = likelihood_params$xi_sigma
   
   recognized_likelihood = FALSE
   if(likelihood_params$type  %in% c("normal","lognormal")) {
-    true$xi = abs(rnorm(1, 0, likelihood_params$xi_sigma))
 
     if(likelihood_params$type == "normal") {
       recognized_likelihood = TRUE
@@ -243,18 +277,13 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
       observed$likelihood_type = 1
     }
         
-    observed$xi_sigma = likelihood_params$xi_sigma
     observed$y_real = rfunc(n_tubes * n_genes, y_hat, true$xi) %>% matrix(ncol = n_genes, nrow = n_tubes)
   } else {
     observed$y_real = array(0,c(0,0))
   }
 
   
-  if(likelihood_params$type %in% c("neg_binomial","dirichlet_multinom")) {
-    true$xi = abs(rnorm(1, 0, likelihood_params$xi_sigma))
-    
-    observed$xi_sigma = likelihood_params$xi_sigma
-  } else {
+  if( ! (likelihood_params$type %in% c("neg_binomial","dirichlet_multinom", "normal_multinom"))) {
     observed$y = array(as.integer(0), c(0,0))
   }
   
@@ -281,7 +310,28 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
   } else {
     observed$exposure = integer(0)
   }
+
+  if(likelihood_params$type == "normal_multinom") {
+    recognized_likelihood = TRUE
+    observed$y = array(.Machine$integer.max, c(n_tubes, n_genes))
   
+  
+    #100 reads/gene on average
+    observed$exposure = (50 * n_genes) + rgeom(n_tubes, 1 / (n_genes * 50) )
+    
+    true$alpha_gamma_z = rnorm(n_tubes * n_genes, 0, 1) %>% matrix(ncol = n_genes, nrow = n_tubes)  
+    exp_overdispersion = exp(true$xi)
+    
+    for(t in 1:n_tubes) {
+      alpha_gamma = y_hat[t,] + true$alpha_gamma_z[t,] * exp_overdispersion
+    
+      observed$y[t,] = rmultinom(1, observed$exposure[t], softmax(alpha_gamma))
+      
+      #For better vizualization
+      true$y[t,] = softmax(y_hat[t,]) * observed$exposure[t]
+      
+    }
+  }
   
   if(!recognized_likelihood) {
     stop("Unrecognized likelihood type:", likelihood_params$type)
