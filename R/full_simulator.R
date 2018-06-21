@@ -103,6 +103,10 @@ sigmoid_link_params <- function(mean_expression_mean, mean_expression_sigma) {
   data.frame(type = "sigmoid", mean_expression_mean, mean_expression_sigma)
 }
 
+simplex_sigmoid_link_params <- function() {
+  data.frame(type = "simplex_sigmoid")
+}
+
 logsigmoid_link_params <- function(inversion_mean, inversion_sigma) {
   data.frame(type = "logsigmoid", inversion_mean, inversion_sigma)
 }
@@ -180,7 +184,7 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     observed$sum_to_zero_sd_per_gene = numeric(0)
   }
   
-  if(link_params$type == "sigmoid") { 
+  if(link_params$type %in% c("sigmoid","simplex_sigmoid") ) { 
     #Interpret intercept as the location of the inflection point
     true$intercept_raw = true$intercept
     true$intercept = - true$intercept_raw * true$beta1
@@ -215,7 +219,7 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     observed$link_type = 1
   } 
   
-    if (link_params$type == "logsigmoid") {
+  if (link_params$type == "logsigmoid") {
     recognized_link = TRUE
     
     true$inversion = rnorm(n_genes, link_params$inversion_mean, link_params$inversion_sigma)
@@ -253,6 +257,23 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     observed$mean_expression_mean = numeric(0)
     observed$mean_expression_sigma = numeric(0)
   }  
+  
+  if (link_params$type == "simplex_sigmoid") {
+    recognized_link = TRUE
+
+    #TODO: Add dependnecy on MCMCPack
+    #Draw from unit simplex
+    true$plateau = MCMCpack::rdirichlet(1, rep(1, n_genes))
+    
+    
+    y_hat <- matrix(-Inf, nrow = n_tubes, ncol = n_genes)
+    for(g in 1:n_genes) {
+      sigmoid_out = 1 / (1 + exp(-true$linear_predictor[,g])  )
+      y_hat[, g] = true$plateau[g] * sigmoid_out
+    }
+    
+    observed$link_type = 4    
+  }    
   
     
   true$y = y_hat
@@ -299,7 +320,9 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     observed$y = array(.Machine$integer.max, c(n_tubes, n_genes))
     
     #100 reads/gene on average
-    observed$exposure = (50 * n_genes) + rgeom(n_tubes, 1 / (n_genes * 50) )
+    #observed$exposure = (50 * n_genes) + rgeom(n_tubes, 1 / (n_genes * 50) )
+    observed$exposure = rep(100 * n_genes, n_tubes)
+    
     for(t in 1:n_tubes) {
       #TODO: Add dependnecy on MCMCPack
       
@@ -316,19 +339,23 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     observed$y = array(.Machine$integer.max, c(n_tubes, n_genes))
   
   
-    #100 reads/gene on average
-    observed$exposure = (50 * n_genes) + rgeom(n_tubes, 1 / (n_genes * 50) )
-    
+    observed$exposure = (200 * n_genes) + rgeom(n_tubes, 1 / (n_genes * 20) )
+
     true$alpha_gamma_z = rnorm(n_tubes * n_genes, 0, 1) %>% matrix(ncol = n_genes, nrow = n_tubes)  
     exp_overdispersion = exp(true$xi)
     
     for(t in 1:n_tubes) {
-      alpha_gamma = y_hat[t,] + true$alpha_gamma_z[t,] * exp_overdispersion
+      #alpha_gamma = y_hat[t,] + true$alpha_gamma_z[t,] * exp_overdispersion
     
-      observed$y[t,] = rmultinom(1, observed$exposure[t], softmax(alpha_gamma))
+      alpha_gamma = y_hat[t,] * exp(true$alpha_gamma_z[t,] * true$xi) #TODO used to be 
+      
+      #TODO: this is different from original model
+      #observed$y[t,] = rmultinom(1, observed$exposure[t], softmax(alpha_gamma))
+      observed$y[t,] = rmultinom(1, observed$exposure[t], alpha_gamma / sum(alpha_gamma))
       
       #For better vizualization
-      true$y[t,] = softmax(y_hat[t,]) * observed$exposure[t]
+      #true$y[t,] = exp(y_hat[t,])
+      true$y[t,] = (y_hat[t,]/sum(y_hat[t,])) * observed$exposure[t]
       
     }
   }
