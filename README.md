@@ -25,3 +25,25 @@ plot_posterior(res, CI=0.95)
 plot_generated_gene(res, "99")
 
 ```
+# Test real data
+
+```R
+
+# Run TABI_glm
+if("package:TABI" %in% search()) detach("package:TABI", unload=TRUE, force=TRUE)
+library(TABI)
+
+tabi_res = TABI_glm(
+	formula = ~ CAPRA_TOTAL + batch,
+	data = prostate_df, 
+	prior = list( 
+		prop_DE =0.1,
+		scale_DE = 5
+	),
+	model=rstan::stan_model("~/PhD/TABI/src/stan_files/DE_sigmoid.stan")
+)
+
+ggplotly(plot_posterior(tabi_res, CI=0.95, covariate = "CAPRA_TOTAL"))
+
+
+```

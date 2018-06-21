@@ -22,11 +22,11 @@
 #' @importFrom dplyr pull
 #' @importFrom dplyr distinct
 #' @importFrom dplyr pull
-#' @importFrom dplyr pull
-#' @importFrom dplyr pull
-#' @importFrom dplyr pull
+#'
+#' @importFrom purrr is_numeric
 #'
 #' @importFrom tidyr spread
+#' @importFrom tidyr gather
 #'
 #' @importFrom tidybayes gather_samples
 #' @importFrom tidybayes mean_qi
@@ -72,7 +72,12 @@ TABI_glm = function(
 	)	,
 	iter = 500,
 	warmup = round(iter/2),
-	model = get_sigmoid_model()
+	model = get_sigmoid_model(),
+	control=list(
+		adapt_delta=0.8,
+		stepsize = 0.1,
+		max_treedepth =10
+	)
 ){
 
 	# Scale design matrix
@@ -112,7 +117,15 @@ TABI_glm = function(
 		# Return the outcome of the model
 		switch(
 			link,
-			"sigmoid" = sigmoid_link(X, y, prior, iter, warmup, model = model)
+			"sigmoid" =
+				sigmoid_link(
+					X, y,
+					prior,
+					iter,
+					warmup,
+					model = model,
+					control = control
+				)
 		)
 	)
 }
