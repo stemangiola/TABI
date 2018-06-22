@@ -1,0 +1,107 @@
+---
+title: "Simulating from the model"
+output: html_notebook
+---
+ 
+```{r setup}
+devtools::load_all()
+library(tidyverse)
+library(rstan)
+```
+ 
+Compile the model
+ 
+```{r}
+model = rstan::stan_model(here::here("src","stan_files","DE_sigmoid.stan"))
+```
+ 
+ 
+Set the prior distribution. Note that I am not providing any `y` as setting `prior_only=1` which makes the model ignore the likelihood. Fitting the model without likelihood in Stan creates samples from the prior distribution. 500 samples should be enough.
+ 
+```{r}
+n_genes = 20
+n_tubes = 13
+prior = list(prop_DE = 10 ,  scale_DE = 5) 
+data = list(G = n_genes, T = n_tubes,
+             X= model.matrix( ~ sort(runif(n_tubes, -1, 1))),
+             y = matrix(0,n_tubes,n_genes),
+             R_1 = 1,
+             exposure = rep(100*n_genes, n_tubes),
+             nu_local = 1,
+             nu_global = 45,
+             par_ratio = prior$prop_DE,
+             slab_df = 4,
+             slab_scale = prior$scale_DE,
+            prior_only = 1
+             )
+ 
+init.fn <- function(chain) list(xi_z=runif(1, 1, 2))
+ 
+  fit =
+    sampling(
+      model,
+      data = data,
+      iter =   1500,
+      warmup = 1000,
+      chains = 1,
+      init = init.fn
+    )
+  ```
+
+Plot latent vs. observed data for a few samples
+
+```{r}
+#Helper function to transform matrix into ggplottable data frame
+gene_matrix_to_plot_data <- function(gene_matrix, genes_to_show) {
+    colnames(gene_matrix) = paste0("Gene", 1:n_genes)
+  plot = gene_matrix[, genes_to_show] %>% as.data.frame() %>% 
+    mutate(x = data$X[,2], id = 1:n_tubes) %>%
+    gather("gene","expression", -id, -x) 
+ 
+}
+ 
+y_gen = rstan::extract(fit, pars = "y_gen")$y_gen
+y_hat = rstan::extract(fit, pars = "y_hat")$y_hat
+n_samples = dim(y_gen)[1]
+samples_to_show = 15
+ 
+for(to_show in sample(1:n_samples, samples_to_show)) {
+  y_gen_sample = y_gen[to_show,,]
+  y_hat_sample = y_hat[to_show,,]
+ 
+  if(n_genes > 6) {
+    genes_to_show = sample(1:n_genes, 6)
+  } else {
+    genes_to_show = 1:n_genes
+  }
+  
+  data_observed = gene_matrix_to_plot_data(y_gen_sample, genes_to_show) %>%
+    mutate(type = "observed (y_gen)")
+  
+  data_latent = gene_matrix_to_plot_data(y_hat_sample, genes_to_show) %>%
+    mutate(type = "latent (y_hat)")
+  
+  plot = data_observed %>%
+    ggplot(aes(x =x ,y = expression)) + geom_point() + geom_line(data = data_latent, color = "blue") + facet_wrap(gene ~ type, scales = "free_y") 
+  
+  print(plot)
+  
+  
+}
+```
+
+Show 
+```{r}
+#beta1_1 = rstan::extract(fit, pars = "beta1_trick")$beta1_trick[,1,]
+beta1_1 = rstan::extract(fit, pars = "beta1")$beta1[,1,]
+n_samples = dim(beta1_1)[1]
+
+abs(beta1_1) %>% as.tibble() %>%
+  mutate(id = 1:n_samples) %>%
+  gather("gene","beta", -id) %>%
+  group_by(id) %>%
+  summarise(ratio_over_0.5 =sum(beta > 0.5) / sum(beta <= 0.5) , ratio_over_1 = sum(beta >1) / sum(beta <=1), ratio_over2 = sum(beta > 2) / sum(beta <= 2)) %>%
+  gather("statistic","value", -id) %>% 
+  ggplot(aes(x = value)) + geom_histogram(bins = 10) + facet_wrap(~statistic)
+```
+
