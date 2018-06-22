@@ -107,8 +107,8 @@ transformed parameters {
 		beta1[r] = beta1_z[r] * non_sparse_sigma[r-1];
 
 	// trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick / 2;
-	for(g in 1:G) inversion_trick[g] = inversion[g] .* fmin(1.0, sigma_trick[g]) / 2; // push to zero if zero slope, otherwise give unitary sd
+	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick ;
+	for(g in 1:G) inversion_trick[g] = inversion[g] .* fmin(1.0, sigma_trick[g]) ; // push to zero if zero slope, otherwise give unitary sd
 
 	// make beta
 	beta[1] = to_row_vector(inversion_trick);
