@@ -58,7 +58,7 @@ parameters {
 	vector[G] inversion;
 	vector[G] intercept;
 	vector[G] beta1_z[R_1];
-	vector[G] alpha_gamma_z[T];
+	vector[G] normalization;
 
 	// Overdispersion of Dirichlet-multinomial
 	real overdispersion;
@@ -86,7 +86,6 @@ transformed parameters {
 	matrix[R_1+1, G] beta;
 	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
-	vector[G] alpha_gamma[T];
 	real<lower=0> exp_overdispersion;
 
 	// Horseshoe calculation
@@ -120,7 +119,6 @@ transformed parameters {
 
 	// Overdispersion
 	exp_overdispersion = exp(overdispersion);
-	for(t in 1:T) alpha_gamma[t] = y_hat[t] + alpha_gamma_z[t] * exp_overdispersion;
 
 }
 model {
@@ -130,6 +128,7 @@ model {
 	inversion ~ normal(0 ,1);
 	intercept ~ normal(0,5);
 	sum(intercept) ~ normal(0, 0.01 * G);
+	normalization ~ normal(0,1);
 
 	// Horseshoe
 	aux1_local ~ normal (0 , 1);
@@ -148,25 +147,16 @@ model {
 	overdispersion ~ normal(0, 1);
 
 	// Likelihood
-	for(t in 1:T) alpha_gamma_z[t] ~ normal(0, 1);
-	if(prior_only == 0) for(t in 1:T) y[t] ~ multinomial( softmax( alpha_gamma[t] ) );
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	( normalization + y_hat[t],  rep_vector(exp_overdispersion, G));
 
 }
 
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
-  int y_hat_od_gen[T,G];
-	vector[G] y_hat_od[T];      // Overdispersed y_hat
-
-	// Generate the overdisperes expected value
-	for (t in 1:T) for(g in 1:G)
-		y_hat_od[t,g] = normal_rng( y_hat[t,g] , exp_overdispersion );
-	for (t in 1:T)
-		y_hat_od_gen[t] = multinomial_rng( softmax ( y_hat_od[t] ), exposure[t] );
 
 	// Generate the data
-	for (t in 1:T)
-		y_gen[t] = multinomial_rng( softmax ( alpha_gamma[t] ), exposure[t] );
+	for (t in 1:T) for(g in 1:G)
+		y_gen[t,g] = neg_binomial_2_log_rng( normalization[g] + y_hat[t,g],  exp_overdispersion );
 
 
 	}
