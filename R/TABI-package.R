@@ -77,7 +77,8 @@ TABI_glm = function(
 		adapt_delta=0.8,
 		stepsize = 0.1,
 		max_treedepth =10
-	)
+	),
+	prior_only = 0
 ){
 
 	# Scale design matrix
@@ -124,7 +125,8 @@ TABI_glm = function(
 					iter,
 					warmup,
 					model = model,
-					control = control
+					control = control,
+					prior_only = prior_only
 				)
 		)
 	)

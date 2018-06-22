@@ -30,7 +30,8 @@ sigmoid_link = function(
 		adapt_delta=0.8,
 		stepsize = 0.1,
 		max_treedepth =10
-	)
+	),
+	prior_only = 0
 ){
 
 	#######################################
@@ -81,7 +82,7 @@ sigmoid_link = function(
 
 		# Generated quantities
 		generated_quantities = fit %>%
-			gather_samples(y_gen[sample_idx, gene_idx] ) %>%
+			gather_samples(y_hat_od_gen[sample_idx, gene_idx] ) %>%
 			mean_qi()
 
 	)

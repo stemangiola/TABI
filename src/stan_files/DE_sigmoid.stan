@@ -32,6 +32,7 @@ functions{
 }
 
 data {
+	int <lower=0, upper = 1> prior_only; // For testing purpose
 	int<lower = 0> G;                   // all genes
 	int<lower = 0> T;                   // tube
 	int<lower=0> R_1;
@@ -45,6 +46,7 @@ data {
 	real < lower =1 > nu_local ; // degrees of freedom for the half - t priors
 	real < lower =0 > slab_scale ; // slab scale for the regularized horseshoe
 	real < lower =0 > slab_df; // slab degrees of freedom for the regularized
+
 }
 
 transformed data{
@@ -147,16 +149,24 @@ model {
 
 	// Likelihood
 	for(t in 1:T) alpha_gamma_z[t] ~ normal(0, 1);
-	for (t in 1:T) y[t] ~ multinomial( softmax( alpha_gamma[t] ) );
+	if(prior_only == 0) for (t in 1:T) y[t] ~ multinomial( softmax( alpha_gamma[t] ) );
 
 }
 
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
+  int y_hat_od_gen[T,G];
 	vector[G] y_hat_od[T];      // Overdispersed y_hat
 
+	// Generate the overdisperes expected value
 	for (t in 1:T) for(g in 1:G)
 		y_hat_od[t,g] = normal_rng( y_hat[t,g] , exp_overdispersion );
 	for (t in 1:T)
-		y_gen[t] = multinomial_rng( softmax ( y_hat_od[t] ), exposure[t] );
+		y_hat_od_gen[t] = multinomial_rng( softmax ( y_hat_od[t] ), exposure[t] );
+
+	// Generate the data
+	for (t in 1:T)
+		y_gen[t] = multinomial_rng( softmax ( alpha_gamma[t] ), exposure[t] );
+
+
 	}
