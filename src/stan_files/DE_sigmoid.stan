@@ -4,16 +4,16 @@ functions{
     return  intercept + log1p_exp(-inversion) - log1p_exp(- to_vector(y)  ) ;
   }
 
-    vector reg_horseshoe(
-						vector zb,
-						real aux1_global ,
-						real aux2_global,
-						vector  aux1_local ,
-						vector aux2_local ,
-						real  caux,
-						real scale_global ,
-						real slab_scale
-						) {
+  vector reg_horseshoe(
+					vector zb,
+					real aux1_global ,
+					real aux2_global,
+					vector  aux1_local ,
+					vector aux2_local ,
+					real  caux,
+					real scale_global ,
+					real slab_scale
+					) {
     int K = rows(zb);
 
     // Horseshoe variables
@@ -27,6 +27,40 @@ functions{
 		tau = aux1_global * sqrt ( aux2_global ) * scale_global * 1 ;
 		c = slab_scale * sqrt ( caux );
 		lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
+		return  zb .* lambda_tilde * tau ;
+  }
+
+  vector reg_horseshoe_rng(
+				vector zb,
+				real aux1_global ,
+				real aux2_global,
+				vector  aux1_local ,
+				vector aux2_local ,
+				real  caux,
+				real scale_global ,
+				real slab_scale
+				) {
+    int K = rows(zb);
+
+    // Horseshoe variables
+		real tau ; // global shrinkage parameter
+		vector [ K] lambda ; // local shrinkage parameter
+		vector [ K] lambda_tilde ; // ’ truncated ’ local shrinkage parameter
+		real c; // slab scale
+
+		// Horseshoe calculation
+		lambda = aux1_local .* sqrt ( aux2_local );
+		tau = aux1_global * sqrt ( aux2_global ) * scale_global * 1 ;
+		c = slab_scale * sqrt ( caux );
+		lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
+
+		// Horseshoe
+		aux1_local ~ normal (0 , 1);
+		aux2_local ~ inv_gamma (0.5* nu_local , 0.5* nu_local );
+		aux1_global ~ normal (0 , 1);
+		aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
+		caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
+
 		return  zb .* lambda_tilde * tau ;
   }
 }
@@ -90,17 +124,17 @@ transformed parameters {
 	real<lower=0> exp_overdispersion;
 
 	// Horseshoe calculation
-		beta1[1] =
-			reg_horseshoe(
-				beta1_z[1],
-				aux1_global ,
-				aux2_global,
-				aux1_local ,
-				aux2_local ,
-				caux,
-				scale_global,
-				slab_scale
-			);
+	beta1[1] =
+		reg_horseshoe(
+			beta1_z[1],
+			aux1_global ,
+			aux2_global,
+			aux1_local ,
+			aux2_local ,
+			caux,
+			scale_global,
+			slab_scale
+		);
 
 	// Other non sparse priors
 	if(R_1 > 1)	for(r in 2:R_1)
@@ -149,7 +183,7 @@ model {
 
 	// Likelihood
 	for(t in 1:T) alpha_gamma_z[t] ~ normal(0, 1);
-	if(prior_only == 0) for (t in 1:T) y[t] ~ multinomial( softmax( alpha_gamma[t] ) );
+	if(prior_only == 0) for(t in 1:T) y[t] ~ multinomial( softmax( alpha_gamma[t] ) );
 
 }
 
