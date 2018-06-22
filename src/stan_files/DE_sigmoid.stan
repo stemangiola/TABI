@@ -29,40 +29,6 @@ functions{
 		lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
 		return  zb .* lambda_tilde * tau ;
   }
-
-  vector reg_horseshoe_rng(
-				vector zb,
-				real aux1_global ,
-				real aux2_global,
-				vector  aux1_local ,
-				vector aux2_local ,
-				real  caux,
-				real scale_global ,
-				real slab_scale
-				) {
-    int K = rows(zb);
-
-    // Horseshoe variables
-		real tau ; // global shrinkage parameter
-		vector [ K] lambda ; // local shrinkage parameter
-		vector [ K] lambda_tilde ; // ’ truncated ’ local shrinkage parameter
-		real c; // slab scale
-
-		// Horseshoe calculation
-		lambda = aux1_local .* sqrt ( aux2_local );
-		tau = aux1_global * sqrt ( aux2_global ) * scale_global * 1 ;
-		c = slab_scale * sqrt ( caux );
-		lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
-
-		// Horseshoe
-		aux1_local ~ normal (0 , 1);
-		aux2_local ~ inv_gamma (0.5* nu_local , 0.5* nu_local );
-		aux1_global ~ normal (0 , 1);
-		aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
-		caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
-
-		return  zb .* lambda_tilde * tau ;
-  }
 }
 
 data {
