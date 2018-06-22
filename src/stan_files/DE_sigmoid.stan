@@ -14,6 +14,8 @@ functions{
 					real scale_global ,
 					real slab_scale
 					) {
+
+		// Size of parameter
     int K = rows(zb);
 
     // Horseshoe variables
@@ -30,23 +32,33 @@ functions{
 		return  zb .* lambda_tilde * tau ;
   }
 
-  vector reg_horseshoe_rng(
-				vector zb,
-				real aux1_global ,
-				real aux2_global,
-				vector  aux1_local ,
-				vector aux2_local ,
-				real  caux,
+  real reg_horseshoe_rng(
 				real scale_global ,
-				real slab_scale
+				real slab_scale,
+				real slab_df,
+				real nu_global,
+				real nu_local
 				) {
-    int K = rows(zb);
 
     // Horseshoe variables
 		real tau ; // global shrinkage parameter
-		vector [ K] lambda ; // local shrinkage parameter
-		vector [ K] lambda_tilde ; // ’ truncated ’ local shrinkage parameter
+		real lambda ; // local shrinkage parameter
+		real lambda_tilde ; // ’ truncated ’ local shrinkage parameter
 		real c; // slab scale
+		real zb;
+		real aux1_global;
+		real aux2_global;
+		real aux1_local ;
+		real aux2_local ;
+		real  caux;
+
+		// Sample from pirors
+		aux1_local = normal_rng (0 , 1);
+		aux2_local = inv_gamma_rng (0.5* nu_local , 0.5* nu_local );
+		aux1_global = normal_rng (0 , 1);
+		aux2_global = inv_gamma_rng (0.5* nu_global , 0.5* nu_global );
+		caux = inv_gamma_rng (0.5* slab_df , 0.5* slab_df );
+		zb = normal_rng(0,1);
 
 		// Horseshoe calculation
 		lambda = aux1_local .* sqrt ( aux2_local );
@@ -54,14 +66,7 @@ functions{
 		c = slab_scale * sqrt ( caux );
 		lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
 
-		// Horseshoe
-		aux1_local ~ normal (0 , 1);
-		aux2_local ~ inv_gamma (0.5* nu_local , 0.5* nu_local );
-		aux1_global ~ normal (0 , 1);
-		aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
-		caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
-
-		return  zb .* lambda_tilde * tau ;
+		return  zb * lambda_tilde * tau ;
   }
 }
 
@@ -85,9 +90,30 @@ data {
 
 transformed data{
 	real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
+
+	////////////////////////////////////////////////////////////////
+	// Variables for only prior
+	////////////////////////////////////////////////////////////////
+
+	vector[G] inversion_gen;
+	vector[G] intercept_gen;
+	vector[G] beta1_gen[R_1];
+
+  // Sample the factor matrix
+	for(g in 1:G) beta1_gen[1,g] = reg_horseshoe_rng(scale_global, slab_scale, slab_df,	nu_global, nu_local);
+	if(R_1 > 1) for(r in 2:R_1) for(g in 1:G) beta1_gen[r,g] = normal_rng(0,1);
+	for(g in 1:G) inversion_gen[g] = normal_rng(0, fmin(1.0, fabs(beta1_gen[1,g]))); // similar to trick used ni the model
+	for(g in 1:G) intercept_gen[g] = normal_rng(0, 5);
+
+	print(beta1_gen[1]);
+
+	////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////
+
 }
 
 parameters {
+
 	// Linear model
 	vector[G] inversion;
 	vector[G] intercept;
@@ -151,6 +177,23 @@ transformed parameters {
 	// Matrix multiplication for speed up
 	X_beta = X * beta;
 	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion, intercept) ;
+
+	////////////////////////////////////////////////////////////////
+	// If prior only overwrite the gene features with generated ones
+	////////////////////////////////////////////////////////////////
+
+	if(prior_only ==1){
+		// make beta
+		beta[1] = to_row_vector(inversion_gen);
+		for(r in 1:R_1) beta[r+1] = to_row_vector(beta1_gen[r]);
+
+		// Matrix multiplication for speed up
+		X_beta = X * beta;
+		for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion_gen, intercept_gen) ;
+	}
+
+	////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////
 
 	// Overdispersion
 	exp_overdispersion = exp(overdispersion);
