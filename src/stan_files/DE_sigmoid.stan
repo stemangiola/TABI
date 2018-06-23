@@ -75,16 +75,11 @@ parameters {
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
 
-	// Sigma trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	vector<lower=0>[G] sigma_trick;
-
 }
 
 transformed parameters {
 
 	vector[G] beta1[R_1];
-	vector[G] beta1_trick[R_1];
-	vector[G] inversion_trick;
 	matrix[R_1+1, G] beta;
 	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
@@ -107,13 +102,9 @@ transformed parameters {
 	if(R_1 > 1)	for(r in 2:R_1)
 		beta1[r] = beta1_z[r] * non_sparse_sigma[r-1];
 
-	// trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick ;
-	for(g in 1:G) inversion_trick[g] = inversion[g] .* fmin(1.0, sigma_trick[g]) ; // push to zero if zero slope, otherwise give unitary sd
-
 	// make beta
-	beta[1] = to_row_vector(inversion_trick);
-	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1_trick[r]);
+	beta[1] = to_row_vector(inversion);
+	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1[r]);
 
 	// Matrix multiplication for speed up
 	X_beta = X * beta;
@@ -142,9 +133,6 @@ model {
 
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
-
-	// Trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	sigma_trick ~ normal(0,1);
 
 	// Overdispersion
 	overdispersion ~ normal(0, 1);
