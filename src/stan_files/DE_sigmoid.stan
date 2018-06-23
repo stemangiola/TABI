@@ -63,7 +63,9 @@ parameters {
 	vector[G] normalization;
 
 	// Overdispersion of Dirichlet-multinomial
-	real overdispersion;
+	vector<lower=0>[G] overdispersion;
+	real overdispersion_mu;
+	real<lower=0> overdispersion_sigma;
 
 	// Horseshoe
 	real < lower =0 > aux1_global ;
@@ -83,7 +85,6 @@ transformed parameters {
 	matrix[R_1+1, G] beta;
 	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
-	real<lower=0> exp_overdispersion;
 
 	// Horseshoe calculation
 	beta1[1] =
@@ -110,8 +111,6 @@ transformed parameters {
 	X_beta = X * beta;
 	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion, intercept) ;
 
-	// Overdispersion
-	exp_overdispersion = exp(overdispersion);
 
 }
 model {
@@ -135,10 +134,12 @@ model {
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 
 	// Overdispersion
-	overdispersion ~ normal(0, 1);
+	overdispersion ~ gamma(overdispersion_mu,overdispersion_sigma);
+	overdispersion_mu ~ normal(0,1);
+	overdispersion_sigma ~ normal(0,1);
 
 	// Likelihood
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	( log(exposure[t]) + normalization[t] + y_hat[t],  rep_vector(exp_overdispersion, G));
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	( log(exposure[t]) + normalization[t] + y_hat[t], 1 ./ overdispersion);
 
 }
 
@@ -147,7 +148,7 @@ generated quantities{
 
 	// Generate the data
 	for (t in 1:T) for(g in 1:G)
-		y_gen[t,g] = neg_binomial_2_log_rng( log(exposure[t]) + normalization[t] + y_hat[t,g],  exp_overdispersion );
+		y_gen[t,g] = neg_binomial_2_log_rng( log(exposure[t]) + normalization[t] + y_hat[t,g], 1 / overdispersion[g] );
 
 
 	}
