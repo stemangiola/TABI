@@ -57,6 +57,8 @@ parameters {
 	// Linear model
 	vector[G] inversion;
 	vector[G] intercept;
+	real intercept_mu;
+	real<lower=0> intercept_sigma;
 	vector[G] beta1_z[R_1];
 	vector[G] normalization;
 
@@ -126,8 +128,9 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
 	inversion ~ normal(0 ,1);
-	intercept ~ normal(0,5);
-	sum(intercept) ~ normal(0, 0.01 * G);
+	intercept ~ normal(intercept_mu, intercept_sigma);
+	intercept_mu ~ normal(0,1);
+	intercept_sigma ~ cauchy(0, 2.5);
 	normalization ~ normal(0,1);
 
 	// Horseshoe
@@ -147,7 +150,7 @@ model {
 	overdispersion ~ normal(0, 1);
 
 	// Likelihood
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	( normalization + y_hat[t],  rep_vector(exp_overdispersion, G));
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	( log(exposure[t]) + normalization[t] + y_hat[t],  rep_vector(exp_overdispersion, G));
 
 }
 
@@ -156,7 +159,7 @@ generated quantities{
 
 	// Generate the data
 	for (t in 1:T) for(g in 1:G)
-		y_gen[t,g] = neg_binomial_2_log_rng( normalization[g] + y_hat[t,g],  exp_overdispersion );
+		y_gen[t,g] = neg_binomial_2_log_rng( log(exposure[t]) + normalization[t] + y_hat[t,g],  exp_overdispersion );
 
 
 	}
