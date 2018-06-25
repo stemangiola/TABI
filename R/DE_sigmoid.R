@@ -78,7 +78,15 @@ sigmoid_link = function(
 		fit = fit,
 
 		# Produce output table posterior
-		posterior_df = fit %>% gather_samples(beta[covariate_idx, gene_idx]),
+		posterior_df = fit %>%
+			gather_samples(beta[covariate_idx, gene_idx]) %>%
+			left_join(
+				tibble(
+					gene_idx = 1:ncol(y),
+					gene = colnames(y)
+				)
+				, by= "gene_idx"
+			),
 
 		# Generated quantities
 		generated_quantities = fit %>%
