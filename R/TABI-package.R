@@ -79,6 +79,7 @@ TABI_glm = function(
 		max_treedepth =10
 	),
 	prior_only = 0
+	size_chunks = ncol(data) - length(parse_formula(formula))
 ){
 
 	# Scale design matrix
@@ -106,6 +107,23 @@ TABI_glm = function(
 		mutate_if(is_numeric, as.integer) %>%
 		select(-one_of(parse_formula(formula)))
 
+	# Run model
+	output = switch(
+		link,
+		"sigmoid" =
+				y %>%
+					sigmoid_link(
+						X,
+						prior,
+						iter,
+						warmup,
+						model = model,
+						control = control,
+						size_chunks = size_chunks
+					)
+	)
+
+
 	# Return
 	c(
 
@@ -116,19 +134,7 @@ TABI_glm = function(
 		),
 
 		# Return the outcome of the model
-		switch(
-			link,
-			"sigmoid" =
-				sigmoid_link(
-					X, y,
-					prior,
-					iter,
-					warmup,
-					model = model,
-					control = control,
-					prior_only = prior_only
-				)
-		)
+		output
 	)
 }
 

@@ -17,11 +17,15 @@ get_sigmoid_model = function(){
 #' @param house_keeping_genes A character string
 #' @return A list
 #'
+#' @importFrom foreach foreach
+#' @importFrom foreach %dopar%
+#' @importFrom doParallel registerDoParallel
+#'
 #' @export
 #'
 sigmoid_link = function(
-	X,
 	y,
+	X,
 	prior,
 	iter,
 	warmup,
@@ -31,42 +35,77 @@ sigmoid_link = function(
 		stepsize = 0.1,
 		max_treedepth =10
 	),
-	prior_only = 0
+	prior_only = 0,
+	size_chunks = ncol(y)
 ){
 
-	#######################################
-	## Model 1
-	#######################################
+	model_data = list(
 
-	# Create dimensions for model
-	G = ncol(y)
-	T = nrow(y)
-	R_1 = ncol(X)-1
+		y = y,
+		X = X,
 
-	# Exposure terms
-	exposure = y %>% rowSums()
+		# Create dimensions for model
+		G = ncol(y),
+		T = nrow(y),
+		R_1 = ncol(X)-1,
 
-	# Horseshoe
-	nu_local = 1
-	nu_global = 45
-	par_ratio = prior$prop_DE
-	slab_df = 4
-	slab_scale = prior$scale_DE
+		# Exposure terms
+		exposure = y %>% rowSums(),
 
-	# Set inits
-	init.fn <- function(chain) list(xi_z=runif(1, 1, 2))
+		# Horseshoe
+		nu_local = 1,
+		nu_global = 45,
+		par_ratio = prior$prop_DE,
+		slab_df = 4,
+		slab_scale = prior$scale_DE
 
+	)
+	# Setup partition of the count dataset
+	index = 1:ncol(y)
+	size_chunk_adj=ceiling(length(index)/max(1,floor(length(index)/size_chunks)))
+	chunks = split(index, ceiling(seq_along(index)/size_chunk_adj))
+	chains = 3
+	registerDoParallel()
+browser()
 	# Run model
-	fit =
-		sampling(
-      model,
+	fits = switch(
+		(!(length(chunks) == 1)) + 1,
+
+		# Non parallel
+		rstan::sampling(
+			stanmodels$DE_sigmoid,
+			data = model_data,
 			iter =   iter,
 			warmup = warmup,
-			chains = 4,
-			cores = 4,
-			init = init.fn,
-			control = control
-		)
+			chains = 3, cores = 3,
+			control = control,
+			save_warmup=FALSE
+		),
+
+		# Parallel
+		foreach(chunk=chunks) %:%
+			foreach (chain=1:chains, .combine = "stan.combine") %dopar% {
+
+				model_data$y = model_data$y[,chunk]
+				model_data$G = length(chunk)
+
+				rstan::sampling(
+					stanmodels$DE_sigmoid,
+					data = model_data,
+					iter =   iter,
+					warmup = warmup,
+					chains = 1, chain_id = chain,
+					control = control,
+					save_warmup=FALSE
+				)
+
+			}
+	)
+
+	# Run model in parallel
+	fits =
+
+
 
 	#######################################
 	## Return
@@ -86,6 +125,10 @@ sigmoid_link = function(
 			mean_qi()
 
 	)
+
+	# fit = foreach(output_chunk = output_chunks) %do% { output_chunk$fit },
+	# posterior_df = foreach(output_chunk = output_chunks, .combine = bind_rows) %do% { output_chunk$posterior_df },
+	# generated_quantities = foreach(output_chunk = output_chunks, .combine = bind_rows) %do% { output_chunk$generated_quantities }
 
 }
 
