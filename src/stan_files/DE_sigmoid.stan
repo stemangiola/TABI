@@ -63,7 +63,7 @@ parameters {
 	vector[G] normalization;
 
 	// Overdispersion of Dirichlet-multinomial
-	real overdispersion;
+	real<lower=0> overdispersion_z;
 
 	// Horseshoe
 	real < lower =0 > aux1_global ;
@@ -105,6 +105,8 @@ transformed parameters {
 	// make beta
 	beta[1] = to_row_vector(inversion);
 	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1[r]);
+	// Overdispersion for negative binomial
+	overdispersion = rep_vector( 1/sqrt(overdispersion_z), G);
 
 	// Matrix multiplication for speed up
 	X_beta = X * beta;
@@ -136,10 +138,10 @@ model {
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 
 	// Overdispersion
-	overdispersion ~ normal(0, 1);
+	overdispersion_z ~ normal(0, 1);
 
 	// Likelihood
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	( log(exposure[t]) + normalization[t] + y_hat[t],  rep_vector(exp_overdispersion, G));
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion);
 
 }
 
@@ -148,7 +150,7 @@ generated quantities{
 
 	// Generate the data
 	for (t in 1:T) for(g in 1:G)
-		y_gen[t,g] = neg_binomial_2_log_rng( log(exposure[t]) + normalization[t] + y_hat[t,g],  exp_overdispersion );
+		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[g] );
 
 
 	}
