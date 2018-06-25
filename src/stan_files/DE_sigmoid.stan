@@ -123,6 +123,7 @@ model {
 	intercept_mu ~ normal(0,1);
 	intercept_sigma ~ cauchy(0, 2.5);
 	normalization ~ normal(0,1);
+	sum(normalization) ~ normal(0, 0.01*T);
 
 	// Horseshoe
 	aux1_local ~ normal (0 , 1);
