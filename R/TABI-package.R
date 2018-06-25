@@ -53,6 +53,28 @@ parse_formula <- function(fm) {
 	else as.character(attr(terms(fm), "variables"))[-1]
 }
 
+#' Scale design matrix
+#'
+#' @param df A tibble
+#' @return A tibble
+#'
+#'
+scale_design = function(df, formula){
+	df %>%
+		setNames(c("sample_idx", "(Intercept)", parse_formula(formula))) %>%
+		gather(cov, value, -sample_idx) %>%
+		group_by(cov) %>%
+		mutate( value = ifelse( !grepl("Intercept", cov) & length(union(c(0,1), value)) != 2, scale(value), value )) %>%
+		ungroup() %>%
+		spread(cov, value) %>%
+		arrange(as.integer(sample_idx)) %>%
+		select(`(Intercept)`, one_of(parse_formula(formula)))
+}
+
+#' make a function to combine the results
+stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
+
+
 #' Perform generalised linear model on RNA seq data
 #'
 #' @param formula A formula
@@ -81,24 +103,11 @@ TABI_glm = function(
 	prior_only = 0
 ){
 
-	# Scale design matrix
-	scale_design = function(df){
-		df %>%
-			setNames(c("sample_idx", "(Intercept)", parse_formula(formula))) %>%
-			gather(cov, value, -sample_idx) %>%
-			group_by(cov) %>%
-			mutate( value = ifelse( !grepl("Intercept", cov) & length(union(c(0,1), value)) != 2, scale(value), value )) %>%
-			ungroup() %>%
-			spread(cov, value) %>%
-			arrange(as.integer(sample_idx)) %>%
-			select(`(Intercept)`, one_of(parse_formula(formula)))
-	}
-
 	# Create design matrix
 	X =
 		model.matrix(object = formula, data = data) %>%
 		as_tibble(rownames="sample_idx") %>%
-		scale_design()
+		scale_design(formula)
 
 	# Set up expression data frame
 	y =
