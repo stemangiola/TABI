@@ -112,9 +112,6 @@ transformed parameters {
 	X_beta = X * beta;
 	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion, intercept) ;
 
-	// Overdispersion
-	exp_overdispersion = exp(overdispersion);
-
 }
 model {
 
