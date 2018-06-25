@@ -119,9 +119,9 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
 	inversion ~ normal(0 ,1);
-	intercept ~ normal(intercept_mu, intercept_sigma);
+	intercept ~ normal(intercept_mu,intercept_sigma);
 	intercept_mu ~ normal(0,1);
-	intercept_sigma ~ cauchy(0, 2.5);
+	intercept_sigma ~ normal(0, 1);
 	normalization ~ normal(0,1);
 	sum(normalization) ~ normal(0, 0.01*T);
 
