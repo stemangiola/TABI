@@ -33,6 +33,7 @@ functions{
 
 data {
 	int <lower=0, upper = 1> prior_only; // For testing purpose
+
 	int<lower = 0> G;                   // all genes
 	int<lower = 0> T;                   // tube
 	int<lower=0> R_1;
@@ -79,14 +80,13 @@ parameters {
 
 transformed parameters {
 
-	vector[G] beta1[R_1];
 	matrix[R_1+1, G] beta;
-	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
 	vector[G] overdispersion;
 
-	// Horseshoe calculation
-	beta1[1] =
+	// Building matrix factors of interest
+	beta[1] = to_row_vector(inversion);
+	beta[2] = to_row_vector(
 		reg_horseshoe(
 			beta1_z[1],
 			aux1_global ,
@@ -96,21 +96,16 @@ transformed parameters {
 			caux,
 			scale_global,
 			slab_scale
-		);
+		)
+	);
+	if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
 
-	// Other non sparse priors
-	if(R_1 > 1)	for(r in 2:R_1)
-		beta1[r] = beta1_z[r] * non_sparse_sigma[r-1];
+	// Calculation of generalised logit
+	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, inversion, intercept) ;
 
-	// make beta
-	beta[1] = to_row_vector(inversion);
-	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1[r]);
 	// Overdispersion for negative binomial
 	overdispersion = rep_vector( 1/sqrt(overdispersion_z), G);
 
-	// Matrix multiplication for speed up
-	X_beta = X * beta;
-	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion, intercept) ;
 
 }
 model {
