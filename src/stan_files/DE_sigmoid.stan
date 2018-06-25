@@ -60,7 +60,7 @@ parameters {
 	real intercept_mu;
 	real<lower=0> intercept_sigma;
 	vector[G] beta1_z[R_1];
-	vector[G] normalization;
+	vector[T] normalization;
 
 	// Overdispersion of Dirichlet-multinomial
 	real<lower=0> overdispersion_z;
@@ -83,7 +83,7 @@ transformed parameters {
 	matrix[R_1+1, G] beta;
 	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
-	real<lower=0> exp_overdispersion;
+	vector[G] overdispersion;
 
 	// Horseshoe calculation
 	beta1[1] =
