@@ -110,10 +110,15 @@ TABI_glm = function(
 		scale_design(formula)
 
 	# Set up expression data frame
+	cn = data %>%
+		select(-one_of(parse_formula(formula))) %>%
+		colnames()
 	y =
 		data %>%
-		mutate_if(is_numeric, as.integer) %>%
-		select(-one_of(parse_formula(formula)))
+		select(-one_of(parse_formula(formula))) %>%
+		apply(2, as.integer) %>%
+		as_tibble() %>%
+		setNames(cn)
 
 	# Return
 	c(
