@@ -36,5 +36,19 @@ evaluation_summary(rstan::extract(fit),true_params = data$true)
 ```
 
 
+```{r}
+n_plots = 5
+for(i in 1:n_plots) {
+  n_genes = 1000
+  data = full_simulator(n_genes,20,
+                          horseshoe_hyperprior_params(5), 
+                          default_intercept_params(0, 1), #intercept here is the location of the inflection point
+                          logsigmoid_link_params(log_y_cross_mean = log(1 / n_genes), log_y_cross_sigma = 2, sum_to_zero_sigma = 1/n_genes), 
+                          dirichlet_multinom_likelihood_params(xi_sigma = 0.1)
+                          )
+  plot_simulated(data) %>% print()
+}
+```
+
 
 

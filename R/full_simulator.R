@@ -61,13 +61,9 @@ no_hyperprior_params <- function(sigma) {
 }
 
 default_intercept_params <- function(mean, sigma) {
-  sum_to_zero_intercept_params(mean, sigma, NULL)
+  data.frame(mean, sigma)
 }
 
-sum_to_zero_intercept_params <- function(mean, sigma, sum_to_zero_sd_per_gene) {
-  data.frame(mean, sigma, sum_to_zero_sd_per_gene)
-}
- 
 normal_likelihood_params <- function(xi_sigma) {
   data.frame(type = "normal", xi_sigma)
 }
@@ -103,12 +99,8 @@ sigmoid_link_params <- function(mean_expression_mean, mean_expression_sigma) {
   data.frame(type = "sigmoid", mean_expression_mean, mean_expression_sigma)
 }
 
-simplex_sigmoid_link_params <- function() {
-  data.frame(type = "simplex_sigmoid")
-}
-
-logsigmoid_link_params <- function(inversion_mean, inversion_sigma) {
-  data.frame(type = "logsigmoid", inversion_mean, inversion_sigma)
+logsigmoid_link_params <- function(log_y_cross_mean, log_y_cross_sigma, sum_to_zero_sigma) {
+  data.frame(type = "logsigmoid", log_y_cross_mean, log_y_cross_sigma, sum_to_zero_sigma)
 }
 
 ##########################
@@ -124,7 +116,7 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
   true$likelihood_params = likelihood_params
   
   # 0. Draw covarietes - assuming disease progression here
-  observed$X = runif(n_tubes, 0, 1)
+  observed$X = runif(n_tubes, -1, 1)
   observed$G = n_genes
   observed$T = n_tubes
   
@@ -161,30 +153,7 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
   # 2. Draw the intercepts
   true$intercept = rnorm(n_genes, intercept_params$mean, intercept_params$sigma)
   
-  if(!is.null(intercept_params$sum_to_zero_sd_per_gene)) {
-    #TODO model code does not support sum to zero
-    
-    # A hacky approximate way to enforce the weak sum to zero constraint:
-    # Draw the final intercept sum
-    true$intercept_sum = rnorm(1, 0, n_genes * intercept_params$sum_to_zero_sd_per_gene)
-    
-    # Split the difference between the actual sum and the desired sum randomly 
-    # Across the intercepts.
-    intercept_change = true$intercept_sum - sum(true$intercept) 
-    
-    #Pick random points on the interval to form split points
-    splits = c(0, sort(runif(n_genes - 1,0, abs(intercept_change))), intercept_change)
-    diffs = diff(splits) * sign(intercept_change)
-    true$intercept = true$intercept + diffs
-    
-    observed$sum_to_zero = 1
-    observed$sum_to_zero_sd_per_gene = intercept_params$sum_to_zero_sd_per_gene
-  } else {
-    observed$sum_to_zero = 0
-    observed$sum_to_zero_sd_per_gene = numeric(0)
-  }
-  
-  if(link_params$type %in% c("sigmoid","simplex_sigmoid") ) { 
+  if(link_params$type %in% c("sigmoid","logsigmoid") ) { 
     #Interpret intercept as the location of the inflection point
     true$intercept_raw = true$intercept
     true$intercept = - true$intercept_raw * true$beta1
@@ -222,19 +191,32 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
   if (link_params$type == "logsigmoid") {
     recognized_link = TRUE
     
-    true$inversion = rnorm(n_genes, link_params$inversion_mean, link_params$inversion_sigma)
+    
+    # true$log_y_cross_raw = rnorm(n_genes, link_params$log_y_cross_mean, link_params$log_y_cross_sigma)
+    # true$log_y_cross_sum_exp = rnorm(1, 0, link_params$sum_to_zero_sigma)
+    # 
+    # #Distribute the remainder equally
+    # sum_change = true$log_y_cross_sum_exp - logsumexp(true$log_y_cross_raw)
+    # 
+    # #Pick random points on the interval to form split points
+    # splits = c(0, sort(runif(n_genes - 1,0, abs(sum_change))), sum_change)
+    # exp_diffs = diff(splits) * sign(sum_change)    
+    # 
+    # true$log_y_cross = log(exp(true$log_y_cross_raw) + exp_diffs)
+    true$log_y_cross = log(MCMCpack::rdirichlet(1, rep(1, n_genes)))
+
     y_hat <- matrix(-Inf, nrow = n_tubes, ncol = n_genes)
     for(g in 1:n_genes) {
       #TODO: the model code is not matching
-      y_hat[, g] = true$intercept[g] + log1pexp(-true$inversion[g]) -  log1pexp(-true$linear_predictor[,g])
+      y_hat[, g] = true$log_y_cross[g] + log1pexp(-true$intercept[g]) -  log1pexp(-true$linear_predictor[,g])
     }
 
     observed$link_type = 2    
-    observed$inversion_mean = array(link_params$inversion_mean, 1)
-    observed$inversion_sigma = array(link_params$inversion_sigma, 1)
+    observed$log_y_cross_mean = array(link_params$log_y_cross_mean, 1)
+    observed$log_y_cross_sigma = array(link_params$log_y_cross_sigma, 1)
   } else {
-    observed$inversion_mean = numeric(0)
-    observed$inversion_sigma = numeric(0)
+    observed$log_y_cross_sigma = numeric(0)
+    observed$log_y_cross_sigma = numeric(0)
   }
 
   if (link_params$type == "sigmoid") {
@@ -257,24 +239,7 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     observed$mean_expression_mean = numeric(0)
     observed$mean_expression_sigma = numeric(0)
   }  
-  
-  if (link_params$type == "simplex_sigmoid") {
-    recognized_link = TRUE
 
-    #TODO: Add dependnecy on MCMCPack
-    #Draw from unit simplex
-    true$plateau = MCMCpack::rdirichlet(1, rep(1, n_genes))
-    
-    
-    y_hat <- matrix(-Inf, nrow = n_tubes, ncol = n_genes)
-    for(g in 1:n_genes) {
-      sigmoid_out = 1 / (1 + exp(-true$linear_predictor[,g])  )
-      y_hat[, g] = true$plateau[g] * sigmoid_out
-    }
-    
-    observed$link_type = 4    
-  }    
-  
     
   true$y = y_hat
   
@@ -323,10 +288,12 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
     #observed$exposure = (50 * n_genes) + rgeom(n_tubes, 1 / (n_genes * 50) )
     observed$exposure = rep(100 * n_genes, n_tubes)
     
+    true$inv_overdispersion = sqrt(true$xi)
+    
     for(t in 1:n_tubes) {
       #TODO: Add dependnecy on MCMCPack
       
-      dirichlet_draw = MCMCpack::rdirichlet(1, softmax(y_hat[t,]))
+      dirichlet_draw = MCMCpack::rdirichlet(1,  true$inv_overdispersion * observed$exposure[t] * softmax(y_hat[t,]))
       observed$y[t,] = rmultinom(1, observed$exposure[t], dirichlet_draw)
     }
     observed$likelihood_type = 3
@@ -378,7 +345,7 @@ full_simulator = function(n_genes, n_tubes, hyperprior_params, intercept_params,
 }
 
 
-plot_simulated <- function(data, n_genes_to_show = min(data$observed$G, 9)) {
+plot_simulated <- function(data, n_genes_to_show = min(data$observed$G, 12)) {
   genes_to_show = sample(1:data$observed$G, n_genes_to_show)
   
   if(data$true$likelihood_params$type %in% c("normal","lognormal")) {
@@ -399,11 +366,14 @@ plot_simulated <- function(data, n_genes_to_show = min(data$observed$G, 9)) {
   }
   
   plot_data_observed <- matrix_to_plot_data(data, data_observed, genes_to_show)
+  plot_data_observed$type = "observed"
   
   plot_data_true <- matrix_to_plot_data(data, data$true$y, genes_to_show)
+  plot_data_true$type = "latent"
   
   plot_data_observed %>% 
     ggplot(aes(x = X, y = expression)) + geom_point() + 
     geom_line(data = plot_data_true, color = "blue") +
-    facet_wrap(~gene, scales = "free_y")
+    facet_wrap(gene~type, scales = "free_y", ncol = 4) + 
+    theme(strip.text = element_blank(), strip.background = element_blank())
 }
