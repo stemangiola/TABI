@@ -7,7 +7,7 @@
 TABI_glm(formula, data, link = "sigmoid", prior = list(prop_DE = 0.05,
   scale_DE = 5), iter = 500, warmup = round(iter/2),
   model = get_sigmoid_model(), control = list(adapt_delta = 0.8, stepsize =
-  0.1, max_treedepth = 10))
+  0.1, max_treedepth = 10), prior_only = 0)
 }
 \arguments{
 \item{formula}{A formula}

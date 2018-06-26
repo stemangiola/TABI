@@ -5,7 +5,8 @@
 \title{Perform generalised linear model on RNA seq data}
 \usage{
 sigmoid_link(X, y, prior, iter, warmup, model = get_sigmoid_model(),
-  control = list(adapt_delta = 0.8, stepsize = 0.1, max_treedepth = 10))
+  control = list(adapt_delta = 0.8, stepsize = 0.1, max_treedepth = 10),
+  prior_only = 0)
 }
 \arguments{
 \item{X}{A design matrix}
