@@ -48,9 +48,9 @@ sigmoid_link = function(
 
 	# Horseshoe
 	nu_local = 1
-	nu_global = 45
+	nu_global = prior$nu_global
 	par_ratio = prior$prop_DE
-	slab_df = 4
+	slab_df = prior$slab_df
 	slab_scale = prior$scale_DE
 
 	# Run model
