@@ -213,15 +213,14 @@ plot_posterior = function(TABi_obj, covariate = colnames(TABi_obj$input.X)[2], C
 		# Filter covariate
 		filter(covariate_idx==which(colnames(TABi_obj$input.X) == !!covariate)) %>%
 
-		# Get statistics
+		# Get statistics, Exclude gene for tidybayes bug
+		select(-gene) %>%
 		mean_qi(.prob =  CI ) %>%
 
 		# Add gene names
+		ungroup() %>%
 		left_join(
-			tibble(
-				gene_idx = 1:ncol(TABi_obj$input.y),
-				gene =     colnames(TABi_obj$input.y)
-			),
+			TABi_obj$posterior_df %>% ungroup() %>% distinct(gene_idx, gene),
 			by = "gene_idx"
 		) %>%
 
