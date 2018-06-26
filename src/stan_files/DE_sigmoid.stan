@@ -1,7 +1,7 @@
 functions{
 
-  vector log_gen_inv_logit(row_vector y, vector inversion, vector intercept) {
-    return  intercept + log1p_exp(-inversion) - log1p_exp(- to_vector(y)  ) ;
+  vector log_gen_inv_logit(row_vector y, row_vector b0, vector y_cross) {
+    return  y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y)  ) ;
   }
 
   vector reg_horseshoe(
@@ -56,7 +56,7 @@ transformed data{
 
 parameters {
 	// Linear model
-	vector[G] inversion;
+	row_vector[G] inflection;
 	vector[G] intercept;
 	real intercept_mu;
 	real<lower=0> intercept_sigma;
@@ -85,7 +85,6 @@ transformed parameters {
 	vector[G] overdispersion;
 
 	// Building matrix factors of interest
-	beta[1] = to_row_vector(inversion);
 	beta[2] = to_row_vector(
 		reg_horseshoe(
 			beta1_z[1],
@@ -98,10 +97,13 @@ transformed parameters {
 			slab_scale
 		)
 	);
-	if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
+		if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
+
+	# Inflection point
+	beta[1] = to_row_vector(-inflection .* beta[2]);
 
 	// Calculation of generalised logit
-	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, inversion, intercept) ;
+	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], intercept) ;
 
 	// Overdispersion for negative binomial
 	overdispersion = rep_vector( 1/sqrt(overdispersion_z), G);
@@ -112,7 +114,7 @@ model {
 
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
-	inversion ~ normal(0 ,1);
+	inflection ~ normal(0 ,1);
 	intercept ~ normal(intercept_mu,intercept_sigma);
 	intercept_mu ~ normal(0,1);
 	intercept_sigma ~ normal(0, 1);
