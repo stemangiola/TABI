@@ -90,7 +90,9 @@ TABI_glm = function(
 	link = "sigmoid",
 	prior = list(
 		prop_DE =0.05,
-		scale_DE = 5
+		scale_DE = 5,
+		nu_global = 5,
+		slab_df = 40
 	)	,
 	iter = 500,
 	warmup = round(iter/2),
