@@ -132,7 +132,7 @@ model {
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 
 	// Overdispersion
-	overdispersion_z ~ normal(0, 1);
+	overdispersion_z ~ gamma(1.02, 2); // similar to normal(0,1) but Keep far from 0 otherwise chain stuck
 
 	// Likelihood
 	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion);
