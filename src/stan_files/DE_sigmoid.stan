@@ -52,6 +52,9 @@ data {
 
 transformed data{
 	real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
+	real < lower =0 > aux1_global = 4;
+	real < lower =0 > aux2_global = 2;
+	real < lower =0 > caux = 2;
 }
 
 parameters {
@@ -67,11 +70,8 @@ parameters {
 	real<lower=0> overdispersion_z;
 
 	// Horseshoe
-	real < lower =0 > aux1_global ;
-	real < lower =0 > aux2_global ;
 	vector < lower =0 >[ G] aux1_local ;
 	vector < lower =0 >[ G] aux2_local ;
-	real < lower =0 > caux ;
 
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
