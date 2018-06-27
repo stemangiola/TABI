@@ -1,7 +1,7 @@
 functions{
 
-  vector log_gen_inv_logit(row_vector y, vector inversion, vector intercept) {
-    return  intercept + log1p_exp(-inversion) - log1p_exp(- to_vector(y)  ) ;
+  vector log_gen_inv_logit(row_vector y, row_vector b0, vector y_cross) {
+    return  y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y)  ) ;
   }
 
   vector reg_horseshoe(
@@ -33,6 +33,7 @@ functions{
 
 data {
 	int <lower=0, upper = 1> prior_only; // For testing purpose
+
 	int<lower = 0> G;                   // all genes
 	int<lower = 0> T;                   // tube
 	int<lower=0> R_1;
@@ -55,13 +56,15 @@ transformed data{
 
 parameters {
 	// Linear model
-	vector[G] inversion;
+	row_vector[G] inflection;
 	vector[G] intercept;
+	real intercept_mu;
+	real<lower=0> intercept_sigma;
 	vector[G] beta1_z[R_1];
-	vector[G] alpha_gamma_z[T];
+	vector[T] normalization;
 
 	// Overdispersion of Dirichlet-multinomial
-	real overdispersion;
+	real<lower=0> overdispersion_z;
 
 	// Horseshoe
 	real < lower =0 > aux1_global ;
@@ -73,24 +76,16 @@ parameters {
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
 
-	// Sigma trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	vector<lower=0>[G] sigma_trick;
-
 }
 
 transformed parameters {
 
-	vector[G] beta1[R_1];
-	vector[G] beta1_trick[R_1];
-	vector[G] inversion_trick;
 	matrix[R_1+1, G] beta;
-	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
-	vector[G] alpha_gamma[T];
-	real<lower=0> exp_overdispersion;
+	vector[G] overdispersion;
 
-	// Horseshoe calculation
-	beta1[1] =
+	// Building matrix factors of interest
+	beta[2] = to_row_vector(
 		reg_horseshoe(
 			beta1_z[1],
 			aux1_global ,
@@ -100,36 +95,31 @@ transformed parameters {
 			caux,
 			scale_global,
 			slab_scale
-		);
+		)
+	);
+		if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
 
-	// Other non sparse priors
-	if(R_1 > 1)	for(r in 2:R_1)
-		beta1[r] = beta1_z[r] * non_sparse_sigma[r-1];
+	# Inflection point
+	beta[1] = to_row_vector(-inflection .* beta[2]);
 
-	// trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick ;
-	for(g in 1:G) inversion_trick[g] = inversion[g] .* fmin(1.0, sigma_trick[g]) ; // push to zero if zero slope, otherwise give unitary sd
+	// Calculation of generalised logit
+	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], intercept) ;
 
-	// make beta
-	beta[1] = to_row_vector(inversion_trick);
-	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1_trick[r]);
+	// Overdispersion for negative binomial
+	overdispersion = rep_vector( 1/sqrt(overdispersion_z), G);
 
-	// Matrix multiplication for speed up
-	X_beta = X * beta;
-	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X_beta[t], inversion, intercept) ;
-
-	// Overdispersion
-	exp_overdispersion = exp(overdispersion);
-	for(t in 1:T) alpha_gamma[t] = y_hat[t] + alpha_gamma_z[t] * exp_overdispersion;
 
 }
 model {
 
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
-	inversion ~ normal(0 ,1);
-	intercept ~ normal(0,5);
-	sum(intercept) ~ normal(0, 0.01 * G);
+	inflection ~ normal(0 ,1);
+	intercept ~ normal(intercept_mu,intercept_sigma);
+	intercept_mu ~ normal(0,1);
+	intercept_sigma ~ normal(0, 1);
+	normalization ~ normal(0,1);
+	sum(normalization) ~ normal(0, 0.01*T);
 
 	// Horseshoe
 	aux1_local ~ normal (0 , 1);
@@ -141,32 +131,20 @@ model {
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 
-	// Trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	sigma_trick ~ normal(0,1);
-
 	// Overdispersion
-	overdispersion ~ normal(0, 1);
+	overdispersion_z ~ normal(0, 1);
 
 	// Likelihood
-	for(t in 1:T) alpha_gamma_z[t] ~ normal(0, 1);
-	if(prior_only == 0) for(t in 1:T) y[t] ~ multinomial( softmax( alpha_gamma[t] ) );
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion);
 
 }
 
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
-  int y_hat_od_gen[T,G];
-	vector[G] y_hat_od[T];      // Overdispersed y_hat
-
-	// Generate the overdisperes expected value
-	for (t in 1:T) for(g in 1:G)
-		y_hat_od[t,g] = normal_rng( y_hat[t,g] , exp_overdispersion );
-	for (t in 1:T)
-		y_hat_od_gen[t] = multinomial_rng( softmax ( y_hat_od[t] ), exposure[t] );
 
 	// Generate the data
-	for (t in 1:T)
-		y_gen[t] = multinomial_rng( softmax ( alpha_gamma[t] ), exposure[t] );
+	for (t in 1:T) for(g in 1:G)
+		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[g] );
 
 
 	}

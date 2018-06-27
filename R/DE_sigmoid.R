@@ -48,23 +48,19 @@ sigmoid_link = function(
 
 	# Horseshoe
 	nu_local = 1
-	nu_global = 45
+	nu_global = prior$nu_global
 	par_ratio = prior$prop_DE
-	slab_df = 4
+	slab_df = prior$slab_df
 	slab_scale = prior$scale_DE
-
-	# Set inits
-	init.fn <- function(chain) list(xi_z=runif(1, 1, 2))
 
 	# Run model
 	fit =
 		sampling(
-      model,
+			stanmodels$DE_sigmoid, #model,
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
 			cores = 4,
-			init = init.fn,
 			control = control
 		)
 
@@ -78,11 +74,19 @@ sigmoid_link = function(
 		fit = fit,
 
 		# Produce output table posterior
-		posterior_df = fit %>% gather_samples(beta[covariate_idx, gene_idx]),
+		posterior_df = fit %>%
+			gather_samples(beta[covariate_idx, gene_idx]) %>%
+			left_join(
+				tibble(
+					gene_idx = 1:ncol(y),
+					gene = colnames(y)
+				)
+				, by= "gene_idx"
+			),
 
 		# Generated quantities
 		generated_quantities = fit %>%
-			gather_samples(y_hat_od_gen[sample_idx, gene_idx] ) %>%
+			gather_samples(y_gen[sample_idx, gene_idx] ) %>%
 			mean_qi()
 
 	)
