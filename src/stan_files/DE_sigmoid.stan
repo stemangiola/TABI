@@ -52,9 +52,9 @@ data {
 
 transformed data{
 	real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
-	real < lower =0 > aux1_global = 4;
-	real < lower =0 > aux2_global = 2;
-	real < lower =0 > caux = 2;
+	real < lower =0 > aux1_global = 2;
+	real < lower =0 > aux2_global = 1;
+	real < lower =0 > caux = 1;
 }
 
 parameters {
