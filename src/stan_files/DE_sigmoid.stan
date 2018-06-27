@@ -4,6 +4,17 @@ functions{
     return  y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y)  ) ;
   }
 
+	real dirichlet_multinomial_lpmf(int[] y, vector alpha) {
+	  	real alpha_plus = sum(alpha);
+
+	    return lgamma(alpha_plus) + sum(lgamma(alpha + to_vector(y)))
+	                - lgamma(alpha_plus+sum(y)) - sum(lgamma(alpha));
+	  }
+
+	 	int[] dirichlet_multinomial_rng(vector alpha, int exposure) {
+	    return multinomial_rng(dirichlet_rng(alpha), exposure);
+	  }
+
   vector reg_horseshoe(
 					vector zb,
 					real aux1_global ,
@@ -135,16 +146,13 @@ model {
 	overdispersion_z ~ normal(0, 1);
 
 	// Likelihood
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion);
+	if(prior_only == 0) for (t in 1:T) y[t] ~ dirichlet_multinomial( overdispersion .* softmax( y_hat[t] ) );
 
 }
 
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
 
-	// Generate the data
-	for (t in 1:T) for(g in 1:G)
-		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[g] );
-
-
+	for (t in 1:T)
+			y_gen[t] = dirichlet_multinomial_rng( overdispersion .* softmax( y_hat[t] ), exposure[t] );
 	}
