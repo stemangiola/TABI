@@ -85,9 +85,82 @@ multinomial_pure = function(){
 	
 }
 
-multinomial_overdispersed= function(){
+dirichlet_multinomial = function(){
 	
 	model_simple = "
+	functions{
+		real dirichlet_multinomial_lpmf(int[] y, vector alpha) {
+	  	real alpha_plus = sum(alpha);
+	
+	    return lgamma(alpha_plus) + sum(lgamma(alpha + to_vector(y)))
+	                - lgamma(alpha_plus+sum(y)) - sum(lgamma(alpha));
+	  }
+	
+	 	int[] dirichlet_multinomial_rng(vector alpha, int exposure) {
+	    return multinomial_rng(dirichlet_rng(alpha), exposure);
+	  }
+	}
+	data{
+	int T;
+	int G;
+	int y[T, G];
+	int exposure[T];
+	}
+	parameters{
+	vector[G] mu;
+// Overdispersion of Dirichlet-multinomial
+	real<lower=0> xi_z;
+	
+	}
+	transformed parameters{
+		vector[G] mu_softmax = softmax(mu);
+
+	// Calculate precision
+	xi = xi_z * G * 10
+
+	}
+	model{
+	sum(mu) ~ normal(0, 0.001 * G);
+	for(t in 1:T) y[t] ~ dirichlet_multinomial( xi * mu_softmax );
+	}
+	generated quantities{
+	int y_gen[T, G];
+	for(t in 1:T) y_gen[t] = dirichlet_multinomial_rng(  xi * mu_softmax, exposure[t] );
+	
+	}
+	
+	"
+	fit = stan(
+		model_code = model_simple,
+		data = list(
+			T = samples,
+			G = length(real_mean),
+			y = y,
+			exposure = exposure
+		),
+		cores = 4,
+		iter = 800
+	)
+	
+	list(
+		fit = fit,
+		getn = fit %>%
+			gather_samples(y_gen[sample_idx, gene_idx] ) %>%
+			mean_qi() 
+	)
+	
+}
+
+
+logNormal_multinomial= function(){
+	
+	model_simple = "
+		functions{
+			real gamma_log_ldpf(real x_log, real a, real b){
+				real jacob = x_log; //jacobian
+				return ( a * log(b) -lgamma(a) + (a-1) * x_log - b*exp(x_log) ) + jacob;
+			}
+		}
 		data{
 		int T;
 		int G;
@@ -98,21 +171,28 @@ multinomial_overdispersed= function(){
 		parameters{
 		vector[G] alpha_z[T];
 		vector[G] mu;
-		real sigma;
+		real mu_mu;
+		real<lower=0> mu_sigma;
+
+		real<lower=0> sigma;
 		}
 		transformed parameters{
 		vector[G] mu_softmax = softmax(mu);
 		
 		vector[G] alpha[T];
-		real<lower=0> exp_sigma = exp(sigma);
-		
-		for(t in 1:T) alpha[t] = mu + alpha_z[t] * exp_sigma;
+
+		for(t in 1:T) alpha[t] = mu + alpha_z[t] * sigma;
 		}
 		model{
 		
+		mu ~ normal(mu_mu,mu_sigma);
+		mu_mu ~ normal(0,1);
+		mu_sigma ~ cauchy(0, 2.5);
+		sum(mu) ~ normal(0, 0.001*G);
+
 		for(t in 1:T) alpha_z[t] ~ normal(0, 1);
-		
-		sum(mu) ~ normal(0, 0.001 * G);
+		//for(t in 1:T) sum(alpha_z[t]) ~ normal(0, 0.001 * G);
+
 		for(t in 1:T) y[t] ~ multinomial( softmax( alpha[t] ) );
 		
 		sigma ~ cauchy(0, 2.5);
@@ -120,7 +200,7 @@ multinomial_overdispersed= function(){
 		generated quantities{
 		int y_gen[T, G];
 		vector[G] mu_od;
-		for(g in 1:G) mu_od[g] = normal_rng( mu[g] , exp_sigma );
+		for(g in 1:G) mu_od[g] = normal_rng( mu[g] , sigma );
 		for(t in 1:T) y_gen[t] = multinomial_rng( softmax( mu_od ), exposure[t] );
 		
 		}
@@ -148,7 +228,7 @@ multinomial_overdispersed= function(){
 	
 }
 
-multinomial_overdispersed_2= function(){
+logNormal_multinomial_2= function(){
 	
 	model_simple = "
 		data{
@@ -331,71 +411,6 @@ negative_binomial= function(){
 	
 }
 
-dirichlet_multinomial = function(){
-	
-	model_simple = "
-	functions{
-		real dirichlet_multinomial_lpmf(int[] y, vector alpha) {
-	  	real alpha_plus = sum(alpha);
-	
-	    return lgamma(alpha_plus) + sum(lgamma(alpha + to_vector(y)))
-	                - lgamma(alpha_plus+sum(y)) - sum(lgamma(alpha));
-	  }
-	
-	 	int[] dirichlet_multinomial_rng(vector alpha, int exposure) {
-	    return multinomial_rng(dirichlet_rng(alpha), exposure);
-	  }
-	}
-	data{
-	int T;
-	int G;
-	int y[T, G];
-	int exposure[T];
-	}
-	parameters{
-	vector[G] mu;
-// Overdispersion of Dirichlet-multinomial
-	real<lower=0> xi_z;
-	
-	}
-	transformed parameters{
-		vector[G] mu_softmax = softmax(mu);
-
-	// Calculate precision
-	xi = xi_z * G * 10
-
-	}
-	model{
-	sum(mu) ~ normal(0, 0.001 * G);
-	for(t in 1:T) y[t] ~ dirichlet_multinomial( xi * mu_softmax );
-	}
-	generated quantities{
-	int y_gen[T, G];
-	for(t in 1:T) y_gen[t] = dirichlet_multinomial_rng(  xi * mu_softmax, exposure[t] );
-	
-	}
-	
-	"
-	fit = stan(
-		model_code = model_simple,
-		data = list(
-			T = samples,
-			G = length(real_mean),
-			y = y,
-			exposure = exposure
-		),
-		cores = 4,
-		iter = 800
-	)
-	
-	list(
-		fit = fit,
-		getn = fit %>%
-			gather_samples(y_gen[sample_idx, gene_idx] ) %>%
-			mean_qi() 
-	)
-	
-}
 
 
 plot_gen = function(x){
@@ -477,6 +492,23 @@ plot_inference = function(plist, title){
 	
 }
 
+color_scheme_set("darkgray")
+np = nuts_params(obj_logNormal_multinomial$fit)
+lp = log_posterior(obj_logNormal_multinomial$fit)
+mcmc_pairs(
+  as.array(obj_logNormal_multinomial$fit),
+	regex_pars  =c("mu\\[(1|2)\\]", "alpha_z\\[(1|2),1\\]", "^sigma" ),
+  off_diag_fun = "hex",
+  condition = pairs_condition(nuts = "lp__"),
+  lp = lp,
+  np = np,
+  np_style = pairs_style_np(div_color = "firebrick",
+                            td_color = "blue",
+                            td_size = 0.5),
+  # for demonstration purposes, set max_treedepth to a value that will
+  # result in at least a few max treedepth warnings
+  max_treedepth = with(np, -1 + max(Value[Parameter == "treedepth__"]))
+)
 
 ```
 
@@ -502,7 +534,7 @@ y = foreach(times = 1:samples, .combine = bind_cols) %do% {
 
 
 obj_pure = multinomial_pure()
-obj_overdispersed = multinomial_overdispersed()
+obj_logNormal_multinomial = logNormal_multinomial()
 obj_over_overdispersed = multinomial_over_overdispersed()
 obj_dirichlet_multinomial = dirichlet_multinomial()
 obj_negative_binomial = negative_binomial()
@@ -512,7 +544,7 @@ obj_negative_binomial = negative_binomial()
 ```{r plot pure}
 
 grid.arrange(plot_gen(obj_pure$getn), plot_mu(obj_pure$fit), top="Multinomial")
-grid.arrange(plot_gen(obj_overdispersed$getn), plot_mu(obj_overdispersed$fit), top="Multinomial overdispersed")
+grid.arrange(plot_gen(obj_logNormal_multinomial$getn), plot_mu(obj_logNormal_multinomial$fit), top="Multinomial overdispersed")
 grid.arrange(plot_gen(obj_over_overdispersed$getn), plot_mu(obj_over_overdispersed$fit), top="Multinomial over overdispersed")
 grid.arrange(plot_gen(obj_dirichlet_multinomial$getn), plot_mu(obj_dirichlet_multinomial$fit), top="Dirichlet multinomial")
 grid.arrange(plot_gen(obj_negative_binomial$getn), plot_mu(obj_negative_binomial$fit), top="Negative binomial")
@@ -540,7 +572,7 @@ y = foreach(times = 1:samples, .combine = bind_cols) %do% {
 
 
 obj_pure = multinomial_pure()
-obj_overdispersed = multinomial_overdispersed()
+obj_logNormal_multinomial = logNormal_multinomial()
 obj_over_overdispersed = multinomial_over_overdispersed()
 obj_dirichlet_multinomial = dirichlet_multinomial()
 obj_negative_binomial = negative_binomial()
@@ -550,7 +582,7 @@ obj_negative_binomial = negative_binomial()
 ```{r plot overdispersed}
 
 grid.arrange(plot_gen(obj_pure$getn), plot_mu(obj_pure$fit), top="Multinomial")
-grid.arrange(plot_gen(obj_overdispersed$getn), plot_mu(obj_overdispersed$fit), top="Multinomial overdispersed")
+grid.arrange(plot_gen(obj_logNormal_multinomial$getn), plot_mu(obj_logNormal_multinomial$fit), top="Multinomial overdispersed")
 grid.arrange(plot_gen(obj_over_overdispersed$getn), plot_mu(obj_over_overdispersed$fit), top="Multinomial over overdispersed")
 grid.arrange(plot_gen(obj_dirichlet_multinomial$getn), plot_mu(obj_dirichlet_multinomial$fit), top="Dirichlet multinomial")
 grid.arrange(plot_gen(obj_negative_binomial$getn), plot_mu(obj_negative_binomial$fit), top="Negative binomial")
@@ -579,7 +611,7 @@ y = foreach(times = 1:samples, .combine = bind_cols) %do% {
 	mutate(gene = 1:length(real_mean)) %>% gather(sample, value, -gene) %>% spread(gene, value ) %>% select(-sample)
 
 obj_pure = multinomial_pure()
-obj_overdispersed = multinomial_overdispersed()
+obj_logNormal_multinomial = logNormal_multinomial()
 obj_over_overdispersed = multinomial_over_overdispersed()
 obj_dirichlet_multinomial = dirichlet_multinomial()
 obj_negative_binomial = negative_binomial()
@@ -589,7 +621,7 @@ obj_negative_binomial = negative_binomial()
 ```{r plot over overdispersed}
 
 grid.arrange(plot_gen(obj_pure$getn), plot_mu(obj_pure$fit), top="Multinomial")
-grid.arrange(plot_gen(obj_overdispersed$getn), plot_mu(obj_overdispersed$fit), top="Multinomial overdispersed")
+grid.arrange(plot_gen(obj_logNormal_multinomial$getn), plot_mu(obj_logNormal_multinomial$fit), top="Multinomial overdispersed")
 grid.arrange(plot_gen(obj_over_overdispersed$getn), plot_mu(obj_over_overdispersed$fit), top="Multinomial over overdispersed")
 grid.arrange(plot_gen(obj_dirichlet_multinomial$getn), plot_mu(obj_dirichlet_multinomial$fit), top="Dirichlet multinomial")
 grid.arrange(plot_gen(obj_negative_binomial$getn), plot_mu(obj_negative_binomial$fit), top="Negative binomial")
