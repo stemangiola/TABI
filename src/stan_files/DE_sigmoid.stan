@@ -155,6 +155,6 @@ generated quantities{
 	for (t in 1:T) for(g in 1:G)
 		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[g] );
 
-		for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1]+1, log_y_cross_prior[2]) );
+		for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000) );
 
 	}
