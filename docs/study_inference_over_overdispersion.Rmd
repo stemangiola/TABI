@@ -24,6 +24,7 @@ library(tidyverse)
 library(rstan)
 library(gridExtra)
 library(tidybayes)
+library(bayesplot)
 ```
 
 
@@ -151,7 +152,6 @@ dirichlet_multinomial = function(){
 	
 }
 
-
 logNormal_multinomial= function(){
 	
 	model_simple = "
@@ -180,10 +180,7 @@ logNormal_multinomial= function(){
 		real<lower=0> sigma;
 		}
 		transformed parameters{
-		vector[G] mu_softmax = softmax(mu);
-		
 		vector[G] alpha[T];
-
 		for(t in 1:T) alpha[t] = mu + alpha_z[t] * sigma;
 		}
 		model{
@@ -196,6 +193,92 @@ logNormal_multinomial= function(){
 		for(t in 1:T) y[t] ~ multinomial( softmax( alpha[t] ) );
 		
 		sigma ~ cauchy(0, 2.5);
+		}
+		generated quantities{
+		int y_gen[T, G];
+		vector[G] mu_od;
+		vector[G] gamma_log_sampling;
+		for(g in 1:G) mu_od[g] = normal_rng( mu[g] , sigma );
+		for(t in 1:T) y_gen[t] = multinomial_rng( softmax( mu_od ), exposure[t] );
+
+		for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(mu_prior[1]+1, mu_prior[2]) );
+		
+		}
+	
+	"
+	
+	fit = stan(
+		model_code = model_simple,
+		data = list(
+			T = samples,
+			G = length(real_mean),
+			y = y,
+			exposure = exposure
+		),
+		cores = 4,
+		iter = 800
+	)
+	
+	list(
+		fit = fit,
+		getn = fit %>%
+			gather_samples(y_gen[sample_idx, gene_idx] ) %>%
+			mean_qi() 
+	)
+	
+}
+
+logStudent_t_multinomial= function(){
+	
+	model_simple = "
+		// https://groups.google.com/forum/#!topic/stan-users/EAGOHgnintY
+		functions{
+			real gamma_log_lpdf(vector x_log, real a, real b){
+
+				vector[rows(x_log)] jacob = x_log; //jacobian
+				real norm_constant = a * log(b) -lgamma(a);
+				real a_minus_1 = a-1;
+				return sum( jacob ) + norm_constant * rows(x_log) + sum(  x_log * a_minus_1 - exp(x_log) * b ) ;
+
+			}
+		}
+		data{
+		int T;
+		int G;
+		int y[T, G];
+		int exposure[T];
+
+		}
+		transformed data{
+			real nu = 8;
+		}
+		parameters{
+		vector[G] alpha_z[T];
+		vector[G] mu;
+		vector<lower=0>[2] mu_prior;
+
+		real<lower=0> sigma;
+		real<lower=0> tau;
+		}
+		transformed parameters{
+		vector[G] mu_softmax = softmax(mu);
+		
+		vector[G] alpha[T];
+
+		for(t in 1:T) alpha[t] = mu + alpha_z[t] / sqrt(tau) * sigma;
+		}
+		model{
+		mu ~ gamma_log(mu_prior[1]+1, mu_prior[2]);
+		mu_prior ~ exponential(1);
+		sum(mu) ~ normal(0, 0.001*G);
+
+		for(t in 1:T) alpha_z[t] ~ normal(0, 1);
+		sigma ~ cauchy(0, 2.5);
+		tau ~ gamma(nu/2, nu/2);
+
+		for(t in 1:T) y[t] ~ multinomial( softmax( alpha[t] ) );
+		
+		
 		}
 		generated quantities{
 		int y_gen[T, G];
@@ -414,8 +497,6 @@ negative_binomial= function(){
 	
 }
 
-
-
 plot_gen = function(x){
 	
 		my_noise = rnorm( x %>% nrow(), 0, 0.1	)
@@ -495,24 +576,29 @@ plot_inference = function(plist, title){
 	
 }
 
-color_scheme_set("darkgray")
-np = nuts_params(obj_logNormal_multinomial$fit)
-lp = log_posterior(obj_logNormal_multinomial$fit)
-mcmc_pairs(
-  as.array(obj_logNormal_multinomial$fit),
-	regex_pars  =c("mu\\[(1|2)\\]", "alpha_z\\[(1|2),1\\]", "^sigma" ),
-  off_diag_fun = "hex",
-  condition = pairs_condition(nuts = "lp__"),
-  lp = lp,
-  np = np,
-  np_style = pairs_style_np(div_color = "firebrick",
-                            td_color = "blue",
-                            td_size = 0.5),
-  # for demonstration purposes, set max_treedepth to a value that will
-  # result in at least a few max treedepth warnings
-  max_treedepth = with(np, -1 + max(Value[Parameter == "treedepth__"]))
-)
+mmcmc_pairs_formatted = function(fit, regex_pars, max_tree_depth = 10){
 
+	color_scheme_set("darkgray")
+	np = nuts_params(fit)
+	lp = log_posterior(fit)
+	mcmc_pairs(
+	  as.array(fit),
+		regex_pars  = regex_pars, #c("mu\\[(1|2)\\]", "alpha_z\\[(1|2),1\\]", "^sigma" ),
+	  off_diag_fun = "hex",
+	  condition = pairs_condition(nuts = "lp__"),
+	  lp = lp,
+	  np = np,
+	  np_style = pairs_style_np(div_color = "firebrick",
+	                            td_color = "green",
+	                            td_size = 0.5),
+	  # for demonstration purposes, set max_treedepth to a value that will
+	  # result in at least a few max treedepth warnings
+	  max_treedepth = with(np, -1 + max_tree_depth)
+	)
+}
+
+obj_logStudent_t_multinomial$fit %>% 
+	mcmc_pairs_formatted(regex_pars = c("mu\\[(1|2)\\]", "alpha_z\\[(1|2),1\\]", "^sigma" ))
 ```
 
 # Multinomial pure

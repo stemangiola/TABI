@@ -1,8 +1,17 @@
 functions{
 
-  vector log_gen_inv_logit(row_vector y, row_vector b0, vector y_cross) {
-    return  y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y)  ) ;
+  vector log_gen_inv_logit(row_vector y, row_vector b0, vector log_y_cross) {
+    return  log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y)  ) ;
   }
+
+	real gamma_log_lpdf(vector x_log, real a, real b){
+
+		vector[rows(x_log)] jacob = x_log; //jacobian
+		real norm_constant = a * log(b) -lgamma(a);
+		real a_minus_1 = a-1;
+		return sum( jacob ) + norm_constant * rows(x_log) + sum(  x_log * a_minus_1 - exp(x_log) * b ) ;
+
+	}
 
   vector reg_horseshoe(
 					vector zb,
@@ -60,9 +69,8 @@ transformed data{
 parameters {
 	// Linear model
 	row_vector[G] inflection;
-	vector[G] intercept;
-	real intercept_mu;
-	real<lower=0> intercept_sigma;
+	vector[G] log_y_cross;
+	vector<lower=0>[2] log_y_cross_prior;
 	vector[G] beta1_z[R_1];
 	vector[T] normalization;
 
@@ -103,7 +111,7 @@ transformed parameters {
 	beta[1] = to_row_vector(-inflection .* beta[2]);
 
 	// Calculation of generalised logit
-	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], intercept) ;
+	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], log_y_cross) ;
 
 	// Overdispersion for negative binomial
 	overdispersion = rep_vector( 1/sqrt(overdispersion_z), G);
@@ -115,9 +123,9 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
 	inflection ~ normal(0 ,1);
-	intercept ~ normal(intercept_mu,intercept_sigma);
-	intercept_mu ~ normal(0,1);
-	intercept_sigma ~ normal(0, 1);
+	log_y_cross ~ gamma_log(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000 );
+	log_y_cross_prior ~ exponential(1);
+
 	normalization ~ normal(0,1);
 	sum(normalization) ~ normal(0, 0.01*T);
 
@@ -141,10 +149,12 @@ model {
 
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
+		vector[G] gamma_log_sampling;
 
 	// Generate the data
 	for (t in 1:T) for(g in 1:G)
 		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[g] );
 
+		for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1]+1, log_y_cross_prior[2]) );
 
 	}
