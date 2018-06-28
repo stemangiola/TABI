@@ -169,7 +169,7 @@ logNormal_multinomial= function(){
 		int T;
 		int G;
 		int y[T, G];
-	int exposure[T];
+		int exposure[T];
 
 		}
 		parameters{
@@ -192,7 +192,6 @@ logNormal_multinomial= function(){
 		sum(mu) ~ normal(0, 0.001*G);
 
 		for(t in 1:T) alpha_z[t] ~ normal(0, 1);
-		//for(t in 1:T) sum(alpha_z[t]) ~ normal(0, 0.001 * G);
 
 		for(t in 1:T) y[t] ~ multinomial( softmax( alpha[t] ) );
 		
