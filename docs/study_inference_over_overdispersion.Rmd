@@ -152,7 +152,6 @@ dirichlet_multinomial = function(){
 	
 }
 
-
 logNormal_multinomial= function(){
 	
 	model_simple = "
@@ -181,10 +180,7 @@ logNormal_multinomial= function(){
 		real<lower=0> sigma;
 		}
 		transformed parameters{
-		vector[G] mu_softmax = softmax(mu);
-		
 		vector[G] alpha[T];
-
 		for(t in 1:T) alpha[t] = mu + alpha_z[t] * sigma;
 		}
 		model{
@@ -317,7 +313,6 @@ logStudent_t_multinomial= function(){
 	)
 	
 }
-
 
 logNormal_multinomial_2= function(){
 	
@@ -502,8 +497,6 @@ negative_binomial= function(){
 	
 }
 
-
-
 plot_gen = function(x){
 	
 		my_noise = rnorm( x %>% nrow(), 0, 0.1	)
@@ -596,7 +589,7 @@ mmcmc_pairs_formatted = function(fit, regex_pars, max_tree_depth = 10){
 	  lp = lp,
 	  np = np,
 	  np_style = pairs_style_np(div_color = "firebrick",
-	                            td_color = "blue",
+	                            td_color = "green",
 	                            td_size = 0.5),
 	  # for demonstration purposes, set max_treedepth to a value that will
 	  # result in at least a few max treedepth warnings
