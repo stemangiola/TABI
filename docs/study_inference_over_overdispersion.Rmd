@@ -583,24 +583,29 @@ plot_inference = function(plist, title){
 	
 }
 
-color_scheme_set("darkgray")
-np = nuts_params(obj_logNormal_multinomial$fit)
-lp = log_posterior(obj_logNormal_multinomial$fit)
-mcmc_pairs(
-  as.array(obj_logNormal_multinomial$fit),
-	regex_pars  =c("mu\\[(1|2)\\]", "alpha_z\\[(1|2),1\\]", "^sigma" ),
-  off_diag_fun = "hex",
-  condition = pairs_condition(nuts = "lp__"),
-  lp = lp,
-  np = np,
-  np_style = pairs_style_np(div_color = "firebrick",
-                            td_color = "blue",
-                            td_size = 0.5),
-  # for demonstration purposes, set max_treedepth to a value that will
-  # result in at least a few max treedepth warnings
-  max_treedepth = with(np, -1 + max(Value[Parameter == "treedepth__"]))
-)
+mmcmc_pairs_formatted = function(fit, regex_pars, max_tree_depth = 10){
 
+	color_scheme_set("darkgray")
+	np = nuts_params(fit)
+	lp = log_posterior(fit)
+	mcmc_pairs(
+	  as.array(fit),
+		regex_pars  = regex_pars, #c("mu\\[(1|2)\\]", "alpha_z\\[(1|2),1\\]", "^sigma" ),
+	  off_diag_fun = "hex",
+	  condition = pairs_condition(nuts = "lp__"),
+	  lp = lp,
+	  np = np,
+	  np_style = pairs_style_np(div_color = "firebrick",
+	                            td_color = "blue",
+	                            td_size = 0.5),
+	  # for demonstration purposes, set max_treedepth to a value that will
+	  # result in at least a few max treedepth warnings
+	  max_treedepth = with(np, -1 + max_tree_depth)
+	)
+}
+
+obj_logStudent_t_multinomial$fit %>% 
+	mcmc_pairs_formatted(regex_pars = c("mu\\[(1|2)\\]", "alpha_z\\[(1|2),1\\]", "^sigma" ))
 ```
 
 # Multinomial pure
