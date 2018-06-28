@@ -156,9 +156,13 @@ logNormal_multinomial= function(){
 	
 	model_simple = "
 		functions{
-			real gamma_log_ldpf(real x_log, real a, real b){
-				real jacob = x_log; //jacobian
-				return ( a * log(b) -lgamma(a) + (a-1) * x_log - b*exp(x_log) ) + jacob;
+			real gamma_log_lpdf(vector x_log, real a, real b){
+
+				vector[rows(x_log)] jacob = x_log; //jacobian
+				real norm_constant = a * log(b) -lgamma(a);
+				real a_minus_1 = a-1;
+				return sum( jacob ) + norm_constant * rows(x_log) + sum(  x_log * a_minus_1 - exp(x_log) * b ) ;
+
 			}
 		}
 		data{
@@ -171,8 +175,7 @@ logNormal_multinomial= function(){
 		parameters{
 		vector[G] alpha_z[T];
 		vector[G] mu;
-		real mu_mu;
-		real<lower=0> mu_sigma;
+		vector<lower=0>[2] mu_prior;
 
 		real<lower=0> sigma;
 		}
@@ -184,10 +187,8 @@ logNormal_multinomial= function(){
 		for(t in 1:T) alpha[t] = mu + alpha_z[t] * sigma;
 		}
 		model{
-		
-		mu ~ normal(mu_mu,mu_sigma);
-		mu_mu ~ normal(0,1);
-		mu_sigma ~ cauchy(0, 2.5);
+		mu ~ gamma_log(mu_prior[1]+1, mu_prior[2]);
+		mu_prior ~ exponential(1);
 		sum(mu) ~ normal(0, 0.001*G);
 
 		for(t in 1:T) alpha_z[t] ~ normal(0, 1);
@@ -200,8 +201,11 @@ logNormal_multinomial= function(){
 		generated quantities{
 		int y_gen[T, G];
 		vector[G] mu_od;
+		vector[G] gamma_log_sampling;
 		for(g in 1:G) mu_od[g] = normal_rng( mu[g] , sigma );
 		for(t in 1:T) y_gen[t] = multinomial_rng( softmax( mu_od ), exposure[t] );
+
+		for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(mu_prior[1]+1, mu_prior[2]) );
 		
 		}
 	
