@@ -123,7 +123,7 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
 	inflection ~ normal(0 ,1);
-	log_y_cross ~ gamma_log(log_y_cross_prior[1]+1, log_y_cross_prior[2]); // normal(log_y_cross_mu,log_y_cross_sigma);
+	log_y_cross ~ gamma_log(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000 );
 	log_y_cross_prior ~ exponential(1);
 
 	normalization ~ normal(0,1);
