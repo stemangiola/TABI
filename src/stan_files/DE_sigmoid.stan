@@ -1,7 +1,7 @@
 functions{
 
-  vector log_gen_inv_logit(row_vector y, row_vector b0, vector log_y_cross) {
-    return  log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y)  ) ;
+  vector log_gen_inv_logit(row_vector y_log, row_vector b0, vector log_y_cross) {
+    return  log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y_log)  ) ;
   }
 
 	real gamma_log_lpdf(vector x_log, real a, real b){
