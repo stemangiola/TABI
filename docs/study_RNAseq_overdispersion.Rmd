@@ -1,0 +1,212 @@
+---
+title: "study_RNAseq_overdispersion"
+author: "Mangiola Stefano"
+date: "29/06/2018"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    code_folding: hide
+  github_document:
+    toc: yes
+    toc_depth: 3
+linkcolor: magenta
+urlcolor: magenta
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, echo=FALSE, results='hide', include=FALSE}
+library(foreach)
+library(tidyverse)
+library(rstan)
+library(gridExtra)
+library(tidybayes)
+library(bayesplot)
+```
+
+## Naive model
+
+This NB_2 model infers log_mean and overdidpersion for 1000 random genes from the N52 data set
+
+```{r naive, eval=FALSE}
+naive = "
+functions{
+	
+	vector log_gen_inv_logit(row_vector y_log, row_vector b0, vector log_y_cross) {
+		return  log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y_log)  ) ;
+	}
+	
+	real gamma_log_lpdf(vector x_log, real a, real b){
+		
+		vector[rows(x_log)] jacob = x_log; //jacobian
+		real norm_constant = a * log(b) -lgamma(a);
+		real a_minus_1 = a-1;
+		return sum( jacob ) + norm_constant * rows(x_log) + sum(  x_log * a_minus_1 - exp(x_log) * b ) ;
+		
+	}
+}
+
+data {
+	int<lower = 0> G;                   // all genes
+	int<lower = 0> T;                   // tube
+	int<lower = 0> y[T, G];             // RNA-seq counts
+}
+
+parameters {
+	// Linear model
+	vector[G] log_y_cross;
+	vector<lower=0>[2] log_y_cross_prior;
+	vector[T] normalization;
+	
+	// Overdispersion of Dirichlet-multinomial
+	vector<lower=0>[G] overdispersion_z;
+	
+}
+
+transformed parameters {
+	vector[G] overdispersion;
+	
+	// Overdispersion for negative binomial
+	overdispersion = 1 ./ sqrt(overdispersion_z);
+	
+}
+model {
+	
+	log_y_cross ~ gamma_log(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000 );
+	log_y_cross_prior ~ exponential(1);
+	
+	normalization ~ normal(0,1);
+	sum(normalization) ~ normal(0, 0.01*T);
+	
+	// Overdispersion
+	overdispersion_z ~ gamma(1.02, 2); // similar to normal(0,1) but Keep far from 0 otherwise chain stuck
+	
+	// Likelihood
+	for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + log_y_cross,  overdispersion);
+	
+}
+	
+	"
+ #df = e.ex %>% select(-sample) %>% select(one_of(sample(names(.)))) %>% select(1:1000)
+ s_phase_1_naive = rstan::stan(
+ 	fit.naive = naive,
+ 	data=list(
+ 		G = ncol(df),
+ 		T = nrow(df),
+ 		y = df
+ 	),
+ 	cores = 4
+ 	#,
+ 	#control =   list(adapt_delta = 0.99, stepsize = 0.01, max_treedepth =15)
+ )
+ 
+```
+ 
+ 
+```{r naive plot}
+load("study_RNAseq_overdispersion_cache/overdispersion_vs_gene_expression_fit.RData")
+
+s_phase_1_naive %>% 
+	spread_samples(log_y_cross[gene], overdispersion[gene]) %>%
+	mean_qi() %>%
+	ggplot(aes(x=log_y_cross, y=overdispersion)) + 
+	geom_point() + 
+	#geom_smooth(method="lm", formula= (y ~ exp(x)), se=FALSE, linetype = 1) +
+	scale_y_log10()
+
+```
+
+```{r regression simple}
+res_simple = "
+functions{
+	
+	vector log_gen_inv_logit(vector y_log, real b0, real log_y_cross) {
+		return  log_y_cross + log1p_exp(-b0) - log1p_exp(- y_log  ) ;
+	}
+	
+	real gamma_log_lpdf(vector x_log, real a, real b){
+		
+		vector[rows(x_log)] jacob = x_log; //jacobian
+		real norm_constant = a * log(b) -lgamma(a);
+		real a_minus_1 = a-1;
+		return sum( jacob ) + norm_constant * rows(x_log) + sum(  x_log * a_minus_1 - exp(x_log) * b ) ;
+		
+	}
+}
+
+data {
+	int<lower = 0> G;                   // all genes
+	int<lower = 0> T;                   // tube
+	int<lower = 0> y[T, G];             // RNA-seq counts
+}
+
+parameters {
+	// Linear model
+	vector[G] log_y_cross;
+	vector<lower=0>[2] log_y_cross_prior;
+	vector[T] normalization;
+	
+	// Overdispersion of Dirichlet-multinomial
+	real od_inflection;
+	real<lower=0> od1;
+	real od_log_y_cross;
+	real<lower=0> od_lower_plateau;
+
+}
+
+transformed parameters {
+	vector[G] overdispersion;
+	real od0 = -od_inflection * od1;
+	overdispersion = exp( log_gen_inv_logit(od0 + od1 * log_y_cross,  od0, od_log_y_cross ) );
+	
+}
+model {
+	
+	log_y_cross ~ gamma_log(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000 );
+	log_y_cross_prior ~ exponential(1);
+	
+	// overdispersion
+	od_inflection ~ normal(10,10);
+	//od1 ~ normal(0,5);
+	//od_log_y_cross ~ normal(0,1);
+	od_lower_plateau ~ normal(0,1);
+	normalization ~ normal(0,1);
+	sum(normalization) ~ normal(0, 0.01*T);
+	
+	// Likelihood
+	for(g in 1:G) y[,g] ~ neg_binomial_2_log	(  normalization + log_y_cross[g], od_lower_plateau + overdispersion[g]);
+	
+}
+	
+	"
+# df = e.ex %>% select(-sample) %>% select(one_of(sample(names(.)))) %>% select(1:1000)
+
+ fit.naive = rstan::stan(
+ 	model_code  = res_simple,
+ 	data=list(
+ 		G = ncol(df),
+ 		T = nrow(df),
+ 		y = df
+ 	),
+ 	cores = 4
+ 	#,
+ 	#control =   list(adapt_delta = 0.99, stepsize = 0.01, max_treedepth =15)
+ )
+ 
+```
+
+```{r simple plot}
+
+fit.naive %>% 
+	spread_samples(log_y_cross[gene], overdispersion[gene]) %>%
+	mean_qi() %>%
+	ggplot(aes(x=log_y_cross, y=overdispersion)) + 
+	geom_point() + 
+	#geom_smooth(method="lm", formula= (y ~ exp(x)), se=FALSE, linetype = 1) +
+	scale_y_log10()
+
+```
+
