@@ -108,7 +108,7 @@ model {
  
  
 ```{r naive plot}
-load("docs/study_RNAseq_overdispersion_cache/overdispersion_vs_gene_expression_fit.RData")
+load("study_RNAseq_overdispersion_cache/overdispersion_vs_gene_expression_fit.RData")
 
 s_phase_1_naive %>% 
 	spread_samples(log_y_cross[gene], overdispersion[gene]) %>%
@@ -244,8 +244,8 @@ functions{
 		return  log_y_cross + log1p_exp(-b0) - log1p_exp(- y_log  ) ;
 	}
 	
-	vector log_gen_inv_logit_empirical(vector y_log, real log_y_cross) {
-	    return  log_y_cross + log1p_exp(-mean(y_log)) - log1p_exp(-y_log);
+	vector gen_inv_logit_overdispersion(vector y, real k) {
+	    return k ./ (1 + exp(-y));  
 	}
 
 	vector gen_inv_logit(vector y, real k) {	return k ./ (1+exp(- y));	}
@@ -269,33 +269,31 @@ data {
 parameters {
 	// Linear model
 	vector[G] log_y_cross;
-	//vector<lower=0>[2] log_y_cross_prior;
+	vector<lower=0>[2] log_y_cross_prior;
 	vector[T] normalization;
 	
 	// Overdispersion of Dirichlet-multinomial
 	real<lower=0> od_inflection;
 	real<lower=0> od1;
-	real<lower=0> od_log_y_cross;
+	real<lower=0> od_k;
 
 }
 
 transformed parameters {
 	real od0 = -od_inflection * od1;
-	vector[G] overdispersion = ((1 ./ exp(log_y_cross))+1) + exp( log_gen_inv_logit_empirical(od0 + od1 * log_y_cross, log( inv(od_log_y_cross)) )) ;
-
-	//vector[G] overdispersion = exp(od0 + od1 * log_y_cross ) ;
-
-	
+	vector[G] overdispersion = ((1 ./ exp(log_y_cross))+1) + gen_inv_logit_overdispersion(od0 + od1 * log_y_cross,  inv(od_k) ) ;
 }
 model {
 	
-	log_y_cross ~ gamma_log(0.05 /100 +1, 1.76 /1000 );
-	//log_y_cross_prior ~ exponential(1);
+	log_y_cross ~ gamma_log(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000 );
+	log_y_cross_prior ~ normal(0, 2);
 	
 	// overdispersion
-	od_inflection ~ normal(0,5);
+	od_inflection ~ normal(0,10);
 	od1 ~ normal(0,1);
-	od_log_y_cross ~ normal(0,1);
+	od_k ~ normal(0,1);
+
+	// Normalisation
 	normalization ~ normal(0,1);
 	sum(normalization) ~ normal(0, 0.01*T);
 	
@@ -305,7 +303,6 @@ model {
 }
 	
 	"}
-# df = e.ex %>% select(-sample) %>% select(one_of(sample(names(.)))) %>% select(1:1000)
 
 res_simple ={ "
 functions{
@@ -314,8 +311,8 @@ functions{
 		return  log_y_cross + log1p_exp(-b0) - log1p_exp(- y_log  ) ;
 	}
 	
-	vector log_gen_inv_logit_empirical(vector y_log, real log_y_cross) {
-	    return  log_y_cross + log1p_exp(-mean(y_log)) - log1p_exp(-y_log);
+	vector gen_inv_logit_overdispersion(vector y, real k) {
+	    return k ./ (1 + exp(-y));  
 	}
 
 	vector gen_inv_logit(vector y, real k) {	return k ./ (1+exp(- y));	}
@@ -343,20 +340,13 @@ parameters {
 	vector[T] normalization;
 	
 	// Overdispersion of Dirichlet-multinomial
-	real od0;
+	real<lower=0> od0;
 	real<lower=0> od1;
-	//real od_log_y_cross;
 
 }
 
 transformed parameters {
-	//real od0 = -od_inflection * od1;
-	//vector[G] overdispersion = exp( log_gen_inv_logit_empirical(od0 + od1 * log_y_cross, od_log_y_cross) ) ;
-
-	//gen_inv_logit(od0 + od1 * log_y_cross,  od_k ) ;
-	vector[G] overdispersion = exp(od0 + od1 * log_y_cross ) ;
-
-	
+	vector[G] overdispersion = ((1 ./ exp(log_y_cross))+1) + exp(od0 + od1 * log_y_cross) ;
 }
 model {
 	
@@ -364,9 +354,8 @@ model {
 	//log_y_cross_prior ~ exponential(1);
 	
 	// overdispersion
-	od0 ~ normal(0,5);
-	od1 ~ normal(0,2);
-	//od_log_y_cross ~ normal(0,1);
+	od0 ~ normal(0,1);
+	od1 ~ normal(0,1);
 	normalization ~ normal(0,1);
 	sum(normalization) ~ normal(0, 0.01*T);
 	
@@ -377,7 +366,19 @@ model {
 	
 	"}
 	
- fit.simple = rstan::stan(
+fit.simple = rstan::stan(
+ 	model_code  = res_simple,
+ 	data=list(
+ 		G = ncol(df),
+ 		T = nrow(df),
+ 		y = df
+ 	),
+ 	cores = 4
+ 	#,
+ 	#control =   list(adapt_delta = 0.99, stepsize = 0.01, max_treedepth =15)
+)
+
+fit.simple = rstan::stan(
  	model_code  = res_simple,
  	data=list(
  		G = ncol(df[,1:200]),
@@ -387,7 +388,7 @@ model {
  	cores = 4
  	#,
  	#control =   list(adapt_delta = 0.99, stepsize = 0.01, max_treedepth =15)
- )
+)
  
 ```
 
@@ -396,9 +397,13 @@ model {
 fit.simple %>% 
 	spread_samples(log_y_cross[gene], overdispersion[gene]) %>%
 	ggplot(aes(x=log_y_cross, y=overdispersion, color=as.factor(.chain))) + 
-	geom_line() + 
-	#geom_smooth(method="lm", formula= (y ~ exp(x)), se=FALSE, linetype = 1) +
-	scale_y_log10()
+	geom_line() + ylim(0,10)
+
+fit.simple %>% 
+	spread_samples(log_y_cross[gene], overdispersion[gene]) %>%
+	median_qi() %>%
+	ggplot(aes(x=log_y_cross, y=overdispersion)) + 
+	geom_line()+ ylim(0,10)
 
 ```
 
