@@ -38,6 +38,12 @@ functions{
 		lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
 		return  zb .* lambda_tilde * tau ;
   }
+
+	vector gen_inv_logit_overdispersion(vector y, real k) {
+			// It uses the empirical mean of x axes instead of 0
+	    return k ./ (1 + exp(-y));
+	}
+
 }
 
 data {
@@ -64,6 +70,11 @@ transformed data{
 	real < lower =0 > aux1_global = 2;
 	real < lower =0 > aux2_global = 1;
 	real < lower =0 > caux = 1;
+
+	// Overdispersion of Dirichlet-multinomial
+	real<lower=0> od_inflection;
+	real<lower=0> od1;
+	real<lower=0> od_k;
 }
 
 parameters {
@@ -74,8 +85,10 @@ parameters {
 	vector[G] beta1_z[R_1];
 	vector[T] normalization;
 
-	// Overdispersion of Dirichlet-multinomial
-	real<lower=0> overdispersion_z;
+	// // Overdispersion of Dirichlet-multinomial
+	// real<lower=0> od_inflection;
+	// real<lower=0> od1;
+	// real<lower=0> od_k;
 
 	// Horseshoe
 	vector < lower =0 >[ G] aux1_local ;
@@ -90,7 +103,8 @@ transformed parameters {
 
 	matrix[R_1+1, G] beta;
 	vector[G] y_hat[T];
-	vector[G] overdispersion;
+	vector[G] overdispersion[T];
+	real od0 = -od_inflection * od1;
 
 	// Building matrix factors of interest
 	beta[2] = to_row_vector(
@@ -114,8 +128,7 @@ transformed parameters {
 	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], log_y_cross) ;
 
 	// Overdispersion for negative binomial
-	overdispersion = rep_vector( 1/sqrt(overdispersion_z), G);
-
+	for(t in 1:T) overdispersion[t] = ((1 ./ exp(y_hat[t]))+1) + gen_inv_logit_overdispersion(od0 + od1 * y_hat[t],  inv(od_k) ) ;
 
 }
 model {
@@ -139,11 +152,13 @@ model {
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 
-	// Overdispersion
-	overdispersion_z ~ gamma(1.02, 2); // similar to normal(0,1) but Keep far from 0 otherwise chain stuck
+	// // overdispersion
+	// od_inflection ~ normal(0,1);
+	// od1 ~ normal(0,1);
+	// od_k ~ normal(0,1);
 
 	// Likelihood
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion);
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion[t]);
 
 }
 
@@ -153,7 +168,7 @@ generated quantities{
 
 	// Generate the data
 	for (t in 1:T) for(g in 1:G)
-		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[g] );
+		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[t,g] );
 
 		for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000) );
 
