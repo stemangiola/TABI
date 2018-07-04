@@ -269,7 +269,7 @@ data {
 parameters {
 	// Linear model
 	vector[G] log_y_cross;
-	//vector<lower=0>[2] log_y_cross_prior;
+	vector<lower=0>[2] log_y_cross_prior;
 	vector[T] normalization;
 	
 	// Overdispersion of Dirichlet-multinomial
@@ -285,8 +285,8 @@ transformed parameters {
 }
 model {
 	
-	log_y_cross ~ gamma_log(0.05 /100 +1, 1.76 /1000 );
-	//log_y_cross_prior ~ exponential(1);
+	log_y_cross ~ gamma_log(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000 );
+	log_y_cross_prior ~ normal(0, 2);
 	
 	// overdispersion
 	od_inflection ~ normal(0,10);
@@ -372,6 +372,18 @@ fit.simple = rstan::stan(
  		G = ncol(df),
  		T = nrow(df),
  		y = df
+ 	),
+ 	cores = 4
+ 	#,
+ 	#control =   list(adapt_delta = 0.99, stepsize = 0.01, max_treedepth =15)
+)
+
+fit.simple = rstan::stan(
+ 	model_code  = res_simple,
+ 	data=list(
+ 		G = ncol(df[,1:200]),
+ 		T = nrow(df[,1:200]),
+ 		y = df[,1:200]
  	),
  	cores = 4
  	#,
