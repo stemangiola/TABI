@@ -72,23 +72,23 @@ transformed data{
 	real < lower =0 > caux = 1;
 
 	// Overdispersion of Dirichlet-multinomial
-	real<lower=0> od_inflection;
-	real<lower=0> od1;
-	real<lower=0> od_k;
+	// real<lower=0> od_inflection = 5.775609e+00;
+	// real<lower=0> od1 = 4.659860e+00;
+	// real<lower=0> od_k = 2.571095e-01;
 }
 
 parameters {
 	// Linear model
 	row_vector[G] inflection;
 	vector[G] log_y_cross;
-	vector<lower=0>[2] log_y_cross_prior;
+	real<lower=0> log_y_cross_prior;
 	vector[G] beta1_z[R_1];
 	vector[T] normalization;
 
 	// // Overdispersion of Dirichlet-multinomial
-	// real<lower=0> od_inflection;
-	// real<lower=0> od1;
-	// real<lower=0> od_k;
+	real<lower=0> od_inflection;
+	real<lower=0> od1;
+	real<lower=0> od_k;
 
 	// Horseshoe
 	vector < lower =0 >[ G] aux1_local ;
@@ -128,7 +128,7 @@ transformed parameters {
 	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], log_y_cross) ;
 
 	// Overdispersion for negative binomial
-	for(t in 1:T) overdispersion[t] = ((1 ./ exp(y_hat[t]))+1) + gen_inv_logit_overdispersion(od0 + od1 * y_hat[t],  inv(od_k) ) ;
+	for(t in 1:T) overdispersion[t] = 1 + gen_inv_logit_overdispersion(od0 + od1 * y_hat[t],  inv(od_k) ) ;
 
 }
 model {
@@ -136,8 +136,8 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
 	inflection ~ normal(0 ,1);
-	log_y_cross ~ gamma_log(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000 );
-	log_y_cross_prior ~ exponential(1);
+	log_y_cross ~ gamma_log(exp(5) * inv(log_y_cross_prior), inv(log_y_cross_prior) );
+	log_y_cross_prior ~ normal(0,10);
 
 	normalization ~ normal(0,1);
 	sum(normalization) ~ normal(0, 0.01*T);
@@ -145,17 +145,17 @@ model {
 	// Horseshoe
 	aux1_local ~ normal (0 , 1);
 	aux2_local ~ inv_gamma (0.5* nu_local , 0.5* nu_local );
-	aux1_global ~ normal (0 , 1);
-	aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
-	caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
+	// aux1_global ~ normal (0 , 1);
+	// aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
+	// caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
 
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 
-	// // overdispersion
-	// od_inflection ~ normal(0,1);
-	// od1 ~ normal(0,1);
-	// od_k ~ normal(0,1);
+	// overdispersion
+	od_inflection ~ normal(0,10);
+	od1 ~ normal(0,1);
+	od_k ~ normal(0,1);
 
 	// Likelihood
 	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion[t]);
@@ -164,12 +164,12 @@ model {
 
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
-		vector[G] gamma_log_sampling;
+		// vector[G] gamma_log_sampling;
 
 	// Generate the data
 	for (t in 1:T) for(g in 1:G)
 		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[t,g] );
 
-		for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1] /100 +1, log_y_cross_prior[2] /1000) );
+		// for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1] + 1, inv(log_y_cross_prior[2] * 100)  ) );
 
 	}
