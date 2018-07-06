@@ -81,7 +81,7 @@ parameters {
 	// Linear model
 	row_vector[G] inflection;
 	vector[G] log_y_cross;
-	real<lower=0> log_y_cross_prior;
+	real<lower=0> log_y_cross_prior[2];
 	vector[G] beta1_z[R_1];
 	vector[T] normalization;
 
@@ -136,8 +136,8 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
 	inflection ~ normal(0 ,1);
-	log_y_cross ~ gamma_log(exp(5) * inv(log_y_cross_prior), inv(log_y_cross_prior) );
-	log_y_cross_prior ~ normal(0,10);
+	log_y_cross ~ gamma_log(exp(log_y_cross_prior[1]) * inv(exp(log_y_cross_prior[2])), inv(exp(log_y_cross_prior[2])) );
+	log_y_cross_prior ~ normal(0,5);
 
 	normalization ~ normal(0,1);
 	sum(normalization) ~ normal(0, 0.01*T);
