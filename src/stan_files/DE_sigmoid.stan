@@ -135,7 +135,7 @@ model {
 
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
-	inflection ~ normal(0 ,1);
+	inflection ~ normal(0 ,5);
 	log_y_cross ~ gamma_log(exp(log_y_cross_prior[1]) * inv(exp(log_y_cross_prior[2])), inv(exp(log_y_cross_prior[2])) );
 	log_y_cross_prior ~ normal(0,5);
 
