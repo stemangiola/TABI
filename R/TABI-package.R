@@ -22,6 +22,8 @@
 #' @importFrom dplyr pull
 #' @importFrom dplyr distinct
 #' @importFrom dplyr pull
+#' @importFrom dplyr arrange
+#' @importFrom dplyr left_join
 #'
 #' @importFrom purrr is_numeric
 #'

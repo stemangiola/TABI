@@ -281,7 +281,7 @@ parameters {
 
 transformed parameters {
 	real od0 = -od_inflection * od1;
-	vector[G] overdispersion = ((1 ./ exp(log_y_cross))+1) + gen_inv_logit_overdispersion(od0 + od1 * log_y_cross,  inv(od_k) ) ;
+	vector[G] overdispersion = (1) + gen_inv_logit_overdispersion(od0 + od1 * log_y_cross,  inv(od_k) ) ;
 }
 model {
 	
