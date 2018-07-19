@@ -1,37 +1,28 @@
 functions{
 
-	real vectors_to_min(vector[] v, int K){
-		vector[K] my_min;
+  vector log_gen_inv_logit(row_vector y_log, row_vector b0, vector log_y_cross) {
+    return  log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y_log)  ) ;
+  }
 
-		for(k in 1:K) my_min[k] = min(v[k]);
+	real gamma_log_lpdf(vector x_log, real a, real b){
 
-		return min(my_min);
+		vector[rows(x_log)] jacob = x_log; //jacobian
+		real norm_constant = a * log(b) -lgamma(a);
+		real a_minus_1 = a-1;
+		return sum( jacob ) + norm_constant * rows(x_log) + sum(  x_log * a_minus_1 - exp(x_log) * b ) ;
+
 	}
- 	real dirichlet_multinomial_lpmf(int[] y, vector alpha) {
-  	real alpha_plus = sum(alpha);
 
-    return lgamma(alpha_plus) + sum(lgamma(alpha + to_vector(y)))
-                - lgamma(alpha_plus+sum(y)) - sum(lgamma(alpha));
-  }
-
- 	int[] dirichlet_multinomial_rng(vector alpha, int exposure) {
-    return multinomial_rng(dirichlet_rng(alpha), exposure);
-  }
-
-  vector log_gen_inv_logit(row_vector y, vector inversion, vector intercept) {
-    return  intercept + log1p_exp(-inversion) - log1p_exp(- to_vector(y)  ) ;
-  }
-
-    vector reg_horseshoe(
-						vector zb,
-						real aux1_global ,
-						real aux2_global,
-						vector  aux1_local ,
-						vector aux2_local ,
-						real  caux,
-						real scale_global ,
-						real slab_scale
-						) {
+  vector reg_horseshoe(
+					vector zb,
+					real aux1_global ,
+					real aux2_global,
+					vector  aux1_local ,
+					vector aux2_local ,
+					real  caux,
+					real scale_global ,
+					real slab_scale
+					) {
     int K = rows(zb);
 
     // Horseshoe variables
@@ -50,6 +41,8 @@ functions{
 }
 
 data {
+	int <lower=0, upper = 1> prior_only; // For testing purpose
+
 	int<lower = 0> G;                   // all genes
 	int<lower = 0> T;                   // tube
 	int<lower=0> R_1;
@@ -63,6 +56,7 @@ data {
 	real < lower =1 > nu_local ; // degrees of freedom for the half - t priors
 	real < lower =0 > slab_scale ; // slab scale for the regularized horseshoe
 	real < lower =0 > slab_df; // slab degrees of freedom for the regularized
+
 }
 
 transformed data{
@@ -71,12 +65,14 @@ transformed data{
 
 parameters {
 	// Linear model
-	vector[G] inversion_z;
-	vector[G] intercept;
+	row_vector[G] inflection;
+	vector[G] log_y_cross;
+	vector<lower=0>[2] log_y_cross_prior;
 	vector[G] beta1_z[R_1];
+	vector[T] normalization;
 
 	// Overdispersion of Dirichlet-multinomial
-	real<lower=0> xi_z;
+	real<lower=0> overdispersion_z;
 
 	// Horseshoe
 	real < lower =0 > aux1_global ;
@@ -88,63 +84,50 @@ parameters {
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
 
-	// Sigma trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	vector<lower=0>[G] sigma_trick;
-
 }
 
 transformed parameters {
 
-	vector[G] beta1[R_1];
-	vector[G] beta1_trick[R_1];
-	vector[G] inversion;
 	matrix[R_1+1, G] beta;
-	matrix[T, G] X_beta;
 	vector[G] y_hat[T];
+	vector[G] overdispersion;
 
-	// Overdispersion
-	real xi;//vector[T] xi;
+	// Building matrix factors of interest
+	beta[2] = to_row_vector(
+		reg_horseshoe(
+			beta1_z[1],
+			aux1_global ,
+			aux2_global,
+			aux1_local ,
+			aux2_local ,
+			caux,
+			scale_global,
+			slab_scale
+		)
+	);
+		if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
 
-	// Horseshoe calculation
-		beta1[1] =
-			reg_horseshoe(
-				beta1_z[1],
-				aux1_global ,
-				aux2_global,
-				aux1_local ,
-				aux2_local ,
-				caux,
-				scale_global,
-				slab_scale
-			);
+	# Inflection point
+	beta[1] = to_row_vector(-inflection .* beta[2]);
 
-	// Other non sparse priors
-	if(R_1 > 1)	for(r in 2:R_1)
-		beta1[r] = beta1_z[r] * non_sparse_sigma[r-1];
+	// Calculation of generalised logit
+	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], log_y_cross) ;
 
-	// trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	for(r in 1:R_1) beta1_trick[r] = beta1[r] .* sigma_trick * 0.5;
-	inversion = inversion_z .* sigma_trick * 0.5;
+	// Overdispersion for negative binomial
+	overdispersion = rep_vector( 1/sqrt(overdispersion_z), G);
 
-	// make beta
-	beta[1] = to_row_vector(inversion);
-	for(r in 1:R_1) beta[r+1] = to_row_vector(beta1_trick[r]);
-
-	// Matrix multiplication for speed up
-	X_beta = X * beta;
-	for(t in 1:T) y_hat[t] = softmax( log_gen_inv_logit(X_beta[t], inversion, intercept) );
-
-	// Calculate precision
-	xi = xi_z * 10000;  //for(t in 1:T) xi[t] = (1 + xi_z) / min(y_hat[t]);
 
 }
 model {
 
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
-	inversion_z ~ normal(0 ,1);
-	intercept ~ normal(0,5);
-	sum(intercept) ~ normal(0, 0.01 * G);
+	inflection ~ normal(0 ,1);
+	log_y_cross ~ gamma_log(log_y_cross_prior[1]+1, log_y_cross_prior[2]); // normal(log_y_cross_mu,log_y_cross_sigma);
+	log_y_cross_prior ~ exponential(1);
+
+	normalization ~ normal(0,1);
+	sum(normalization) ~ normal(0, 0.01*T);
 
 	// Horseshoe
 	aux1_local ~ normal (0 , 1);
@@ -156,20 +139,22 @@ model {
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 
-	// Trick //Discourse [quote=\"stijn, post:2, topic:4201\"]
-	sigma_trick ~ normal(0,1);
-
 	// Overdispersion
-	xi_z ~ normal(0,1);
+	overdispersion_z ~ gamma(1.02, 2); // similar to normal(0,1) but Keep far from 0 otherwise chain stuck
 
 	// Likelihood
-	for (t in 1:T) y[t] ~ dirichlet_multinomial( xi * y_hat[t] );
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion);
 
 }
 
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
+		vector[G] gamma_log_sampling;
 
-	for (t in 1:T)
-			y_gen[t] = dirichlet_multinomial_rng( xi * y_hat[t], exposure[t] );
+	// Generate the data
+	for (t in 1:T) for(g in 1:G)
+		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[g] );
+
+		for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1]+1, log_y_cross_prior[2]) );
+
 	}

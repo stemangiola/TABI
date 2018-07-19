@@ -53,6 +53,28 @@ parse_formula <- function(fm) {
 	else as.character(attr(terms(fm), "variables"))[-1]
 }
 
+#' Scale design matrix
+#'
+#' @param df A tibble
+#' @return A tibble
+#'
+#'
+scale_design = function(df, formula){
+	df %>%
+		setNames(c("sample_idx", "(Intercept)", parse_formula(formula))) %>%
+		gather(cov, value, -sample_idx) %>%
+		group_by(cov) %>%
+		mutate( value = ifelse( !grepl("Intercept", cov) & length(union(c(0,1), value)) != 2, scale(value), value )) %>%
+		ungroup() %>%
+		spread(cov, value) %>%
+		arrange(as.integer(sample_idx)) %>%
+		select(`(Intercept)`, one_of(parse_formula(formula)))
+}
+
+#' make a function to combine the results
+stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
+
+
 #' Perform generalised linear model on RNA seq data
 #'
 #' @param formula A formula
@@ -68,7 +90,9 @@ TABI_glm = function(
 	link = "sigmoid",
 	prior = list(
 		prop_DE =0.05,
-		scale_DE = 5
+		scale_DE = 5,
+		nu_global = 5,
+		slab_df = 40
 	)	,
 	iter = 500,
 	warmup = round(iter/2),
@@ -77,33 +101,26 @@ TABI_glm = function(
 		adapt_delta=0.8,
 		stepsize = 0.1,
 		max_treedepth =10
-	)
+	),
+	prior_only = 0
 ){
-
-	# Scale design matrix
-	scale_design = function(df){
-		df %>%
-			setNames(c("sample_idx", "(Intercept)", parse_formula(formula))) %>%
-			gather(cov, value, -sample_idx) %>%
-			group_by(cov) %>%
-			mutate( value = ifelse( !grepl("Intercept", cov) & length(union(c(0,1), value)) != 2, scale(value), value )) %>%
-			ungroup() %>%
-			spread(cov, value) %>%
-			arrange(as.integer(sample_idx)) %>%
-			select(`(Intercept)`, one_of(parse_formula(formula)))
-	}
 
 	# Create design matrix
 	X =
 		model.matrix(object = formula, data = data) %>%
 		as_tibble(rownames="sample_idx") %>%
-		scale_design()
+		scale_design(formula)
 
 	# Set up expression data frame
+	cn = data %>%
+		select(-one_of(parse_formula(formula))) %>%
+		colnames()
 	y =
 		data %>%
-		mutate_if(is_numeric, as.integer) %>%
-		select(-one_of(parse_formula(formula)))
+		select(-one_of(parse_formula(formula))) %>%
+		apply(2, as.integer) %>%
+		as_tibble() %>%
+		setNames(cn)
 
 	# Return
 	c(
@@ -124,7 +141,8 @@ TABI_glm = function(
 					iter,
 					warmup,
 					model = model,
-					control = control
+					control = control,
+					prior_only = prior_only
 				)
 		)
 	)
@@ -197,15 +215,14 @@ plot_posterior = function(TABi_obj, covariate = colnames(TABi_obj$input.X)[2], C
 		# Filter covariate
 		filter(covariate_idx==which(colnames(TABi_obj$input.X) == !!covariate)) %>%
 
-		# Get statistics
+		# Get statistics, Exclude gene for tidybayes bug
+		select(-gene) %>%
 		mean_qi(.prob =  CI ) %>%
 
 		# Add gene names
+		ungroup() %>%
 		left_join(
-			tibble(
-				gene_idx = 1:ncol(TABi_obj$input.y),
-				gene =     colnames(TABi_obj$input.y)
-			),
+			TABi_obj$posterior_df %>% ungroup() %>% distinct(gene_idx, gene),
 			by = "gene_idx"
 		) %>%
 
