@@ -153,14 +153,62 @@ TABI_glm = function(
 #' @param TABi_obj A TABI output object
 #' @param gene A character string
 #' @param covariate A character string
-#' @param CI A real number
+#' @param type `errorbar` or `lines` for type of uncertainty display. Note that `lines` ignores normalization terms.
 #'
 #' @return A tibble
 #'
 #' @export
 #'
-plot_generated_gene = function(TABi_obj, gene, covariate = colnames(TABi_obj$input.X)[2], CI = 1 - (0.05 / ncol(TABi_obj$input.y))){
+plot_generated_gene = function(TABi_obj, gene, covariate = colnames(TABi_obj$input.X)[2],
+                               type = "errorbar", num_line_samples = 50, line_alpha = 0.1){
 
+  if(type == "errorbar") {
+    error_geom = geom_errorbar(aes(ymin=conf.low, ymax=conf.high), width = 0)
+    ggplot_modifiers = NULL
+  } else if (type == "lines") {
+    gene_idx = which(colnames(TABi_obj$input.y) == gene)
+    if(gene_idx <= 0) {
+      stop("Gene not found")
+    }
+    
+    other_vars_name = colnames(TABi_obj$input.X) %>% setdiff(c(covariate, "(Intercept)")) %>%
+      paste(sep = "_")
+    
+    # Gather the estimated y_hat values, and exponentiate them to get sample means.
+    # We do NOT include normalization as this renders the plot useless
+    line_data = gather_samples(TABi_obj$fit, y_hat[sample_idx, gene_idx]) %>%
+      filter(gene_idx == !!gene_idx) %>%
+      mutate(.draw = (.chain - 1) * max(.iteration) + .iteration,  # We need to group by chain+iteration
+             y_mean = exp(estimate)
+             ) %>%
+      # Attach X
+      inner_join(
+          TABi_obj$input.X %>%
+            rename(x = !!covariate) %>%
+            unite(other_vars, -x, -`(Intercept)`) %>% #Combine all other predictors int a single column
+            mutate(sample_idx = 1:nrow(TABi_obj$input.X))
+          , by = c("sample_idx" = "sample_idx")
+      ) 
+
+    # Select only a limited number of draws to show, otherwise the plot becomes unusable
+    n_draws_to_show = min(num_line_samples, max(line_data$.draw))
+    draws_to_show = sample(1:max(line_data$.draw), n_draws_to_show)
+    
+    line_data = line_data %>% 
+      filter(.draw %in% draws_to_show) %>%
+      unite(group, .draw, other_vars, remove = FALSE) #A single line is values from the same chain+iter AND with the same other covariates
+      
+    
+    error_geom = geom_line(data = line_data, 
+                           aes(x = x, y = y_mean, group = group, color = other_vars ), 
+                           inherit.aes = FALSE, 
+                           alpha = line_alpha)
+    ggplot_modifiers = guides(colour = guide_legend(override.aes = list(alpha = 1), title = other_vars_name))
+  } else {
+    stop(paste0("Unknown plot type: ", type))
+  }
+  
+  
 	TABi_obj$generated_quantities %>%
 
 		# Add gene names
@@ -188,9 +236,11 @@ plot_generated_gene = function(TABi_obj, gene, covariate = colnames(TABi_obj$inp
 				setNames("observed")
 		) %>%
 
+    
 		# Plot
 		ggplot(aes(x=x, y=observed)) +
-		geom_errorbar(aes(ymin=conf.low, ymax=conf.high), width = 0) +
+		error_geom + ggplot_modifiers +
+	  scale_x_continuous(name = covariate) +
 		geom_point(color="red") +
 		theme_bw()
 
