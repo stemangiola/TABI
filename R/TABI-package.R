@@ -241,6 +241,7 @@ plot_generated_gene = function(TABi_obj, gene, covariate = colnames(TABi_obj$inp
 		ggplot(aes(x=x, y=observed)) +
 		error_geom + ggplot_modifiers +
 	  scale_x_continuous(name = covariate) +
+	  scale_y_continuous(name = paste("observed",gene)) +
 		geom_point(color="red") +
 		theme_bw()
 
