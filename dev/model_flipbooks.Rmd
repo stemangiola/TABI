@@ -1,0 +1,113 @@
+---
+title: "Flip books of models + priors"
+output: html_notebook
+---
+
+```{r setup}
+devtools::load_all(".")
+library(rstan)
+library(here)
+library(shinystan)
+library(tidyverse)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+```
+
+
+```{r}
+n_sigmoid <- 50
+x <- seq(0,1,length.out = 20)
+
+for(i in 1:5) {
+  data <- data.frame(id = 1:n_sigmoid, k = rlnorm(n_sigmoid,4,2), w = rnorm(n_sigmoid,0, 10)) %>% 
+    mutate(b = rnorm(n_sigmoid, -w*0.5, abs(w)*0.4)) %>% #Choose b so that most observed sigmoid parts are not falt
+    crossing(data.frame(x)) %>% #Add the covariete
+    mutate(sigmoid_value = k * (1/(1+ exp(-w*x-b)))) %>% #Compute the sigmoid
+    group_by(x) %>% #Grouping "per-tube" (x is unique)
+    #Do the softmax, scale by k (which is per-gene constant)
+    mutate(softmax_value = softmax(log(sigmoid_value))) %>%
+    ungroup() %>% group_by(id) %>%
+    mutate(softmax_value_scaled = softmax_value * max(sigmoid_value)) %>%
+    gather("type", "value", sigmoid_value, softmax_value_scaled)
+  
+  #Filter for visualisation
+  if(n_sigmoid > 9) {
+    ids_to_show <- sample(1:n_sigmoid,9)
+    data <- data %>% filter(id %in% ids_to_show)
+  }
+  
+  plot <- data %>% ggplot(aes(x=x, y = value, color = type)) + geom_line() + facet_wrap(~id, scales = "free_y") 
+  print(plot)
+}
+```
+
+In all the following, dots represetn measured expression and blue line the expected mean expression.
+
+# Normal-multinomial with softmax + log sigmoid link
+
+
+```{r}
+for(i in 1:5) {
+  data = full_simulator(n_genes = 9, n_tubes = 20,
+                        horseshoe_hyperprior_params(0.1), 
+                        sum_to_zero_intercept_params(0, 5, 0.01), 
+                        simplex_sigmoid_link_params(), 
+                        #linear_link_params(),
+                        normal_multinom_likelihood_params(1)
+                        )
+
+  (plot_simulated(data) + ggtitle(paste("Draw",i))) %>% print()
+}
+
+```
+
+With more genes, the situation gets worse:
+
+```{r}
+for(i in 1:5) {
+  data = full_simulator(n_genes = 10, n_tubes = 20,
+                        horseshoe_hyperprior_params(10), 
+                        sum_to_zero_intercept_params(0, 5, 0.01), 
+                        logsigmoid_link_params(15,3), 
+                        #linear_link_params(),
+                        normal_multinom_likelihood_params(1)
+                        )
+
+  (plot_simulated(data) + ggtitle(paste("Draw",i))) %>% print()
+}
+
+
+# Negative binomial with exponential link
+
+```{r}
+for(i in 1:5) {
+  data = full_simulator(10,20,
+                        horseshoe_hyperprior_params(10), 
+                        default_intercept_params(3, 3), 
+                        exp_link_params(), 
+                        #linear_link_params(),
+                        neg_binomial_likelihood_params(2)
+                        )
+
+  (plot_simulated(data) + ggtitle(paste("Draw",i))) %>% print()
+}
+
+```
+
+# Negative binomial with sigmoid link
+
+```{r}
+for(i in 1:5) {
+  data = full_simulator(10,20,
+                        horseshoe_hyperprior_params(10), 
+                        default_intercept_params(0.5, 0.3), #intercept here is the location of the inflection point
+                        sigmoid_link_params(5,3), 
+                        #linear_link_params(),
+                        neg_binomial_likelihood_params(2)
+                        )
+
+  (plot_simulated(data) + ggtitle(paste("Draw",i))) %>% print()
+}
+
+```
+
