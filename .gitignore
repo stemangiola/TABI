@@ -6,11 +6,7 @@ src/stan_files/*.so
 src/stan_files/*.hpp
 src/stan_files/*.cc
 src/TABI.so
-src/TABI.dll
 src/init.o
 
 #Ignore cache of markdown
 docs/*cache
-
-#Ignore compiled notebooks 
-*.nb.html 
