@@ -1,12 +1,1 @@
 .Rproj.user
-.Rhistory
-TABI.Rproj
-src/stan_files/*.o
-src/stan_files/*.so
-src/stan_files/*.hpp
-src/stan_files/*.cc
-src/TABI.so
-src/init.o
-
-#Ignore cache of markdown
-docs/*cache

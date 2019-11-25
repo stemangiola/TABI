@@ -4,8 +4,8 @@
 \alias{plot_posterior}
 \title{Plots the posterior credible interval across all genes}
 \usage{
-plot_posterior(TABi_obj, covariate = colnames(TABi_obj$input.X)[2], CI = 1 -
-  (0.05/ncol(TABi_obj$input.y)))
+plot_posterior(TABi_obj, covariate = colnames(TABi_obj$input.X)[2],
+  CI = 1 - (0.05/ncol(TABi_obj$input.y)))
 }
 \arguments{
 \item{TABi_obj}{A TABI output object}

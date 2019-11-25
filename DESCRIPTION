@@ -1,15 +1,25 @@
 Package: TABI
-Version: 0.0.0.9000
 Title: Transcriptomic Analyses through Bayesian Inference
-Description: Coolection of algorithms for performing Bayesian inference for transcriptomic data.
+Version: 0.0.0.9000
 Authors@R: person("Stefano", "Mangiola", , "mangiola.s@wehi.edu.au", c("aut", "cre"))
-License: GPL (>=3)
+Description: Coolection of algorithms for performing Bayesian inference for transcriptomic data.
+License: What license it uses
 Encoding: UTF-8
 LazyData: true
-ByteCompile: true
-Depends: R (>= 3.4.0), Rcpp (>= 0.12.16), methods
-Imports: rstan (>= 2.17.3), rstantools (>= 1.5.0), tidyverse(>= 1.2.1), tidybayes, ggplot2, foreach, dplyr, tibble
-LinkingTo: StanHeaders (>= 2.17.2), rstan (>= 2.17.3), BH (>= 1.66.0-1), Rcpp (>= 0.12.16), RcppEigen (>= 0.3.3.4.0)
+Biarch: true
+Depends: 
+    R (>= 3.4.0)
+Imports: 
+    methods,
+    Rcpp (>= 0.12.0),
+    rstan (>= 2.18.1),
+    rstantools (>= 2.0.0),
+    tidyverse(>= 1.2.1), tidybayes, ggplot2, foreach, dplyr, tibble
+LinkingTo: 
+    BH (>= 1.66.0),
+    Rcpp (>= 0.12.0),
+    RcppEigen (>= 0.3.3.3.0),
+    rstan (>= 2.18.1),
+    StanHeaders (>= 2.18.0)
 SystemRequirements: GNU make
-NeedsCompilation: yes
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.1
