@@ -67,9 +67,9 @@ data {
 
 transformed data{
 	real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
-	real < lower =0 > aux1_global = 2;
-	real < lower =0 > aux2_global = 1;
-	real < lower =0 > caux = 1;
+	// real < lower =0 > aux1_global = 2;
+	// real < lower =0 > aux2_global = 1;
+	// real < lower =0 > caux = 1;
 
 	// Overdispersion of Dirichlet-multinomial
 	// real<lower=0> od_inflection = 5.775609e+00;
@@ -93,6 +93,9 @@ parameters {
 	// Horseshoe
 	vector < lower =0 >[ G] aux1_local ;
 	vector < lower =0 >[ G] aux2_local ;
+	real < lower =0 > aux1_global;
+	real < lower =0 > aux2_global;
+	real < lower =0 > caux;
 
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
