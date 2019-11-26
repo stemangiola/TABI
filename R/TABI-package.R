@@ -225,7 +225,7 @@ plot_posterior = function(TABi_obj, covariate = colnames(TABi_obj$input.X)[2], C
 
 		# Get statistics, Exclude gene for tidybayes bug
 		select(-gene) %>%
-		mean_qi(.prob =  CI ) %>%
+		mean_qi( ) %>%
 
 		# Add gene names
 		ungroup() %>%
@@ -235,11 +235,11 @@ plot_posterior = function(TABi_obj, covariate = colnames(TABi_obj$input.X)[2], C
 		) %>%
 
 		# Attribute significance
-		mutate(sig = !(conf.low <= 0 & conf.high >=0 )) %>%
+		mutate(sig = !(.lower <= 0 & .upper >=0 )) %>%
 
 		# Plot
 		ggplot(aes(x=gene, y=estimate, color=sig)) +
-		geom_errorbar(aes(ymin=conf.low, ymax=conf.high), width = 0) +
+		geom_errorbar(aes(ymin=.lower, ymax=.upper), width = 0) +
 		theme_bw()
 
 }
