@@ -90,12 +90,10 @@ TABI_glm = function(
 	formula,
 	data,
 	link = "sigmoid",
-	prior = list(
-		prop_DE =0.05,
-		scale_DE = 5,
-		nu_global = 5,
-		slab_df = 40
-	)	,
+	prop_DE =0.05,
+	scale_DE = 5,
+	nu_global = 5,
+	slab_df = 40	,
 	iter = 500,
 	warmup = round(iter/2),
 	model = get_sigmoid_model(),
@@ -106,6 +104,14 @@ TABI_glm = function(
 	),
 	prior_only = 0
 ){
+
+	# Set prior
+	prior = list(
+		prop_DE =prop_DE,
+		scale_DE = scale_DE,
+		nu_global = nu_global,
+		slab_df = slab_df
+	)
 
 	# Create design matrix
 	X =
