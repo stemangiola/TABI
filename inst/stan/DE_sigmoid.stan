@@ -67,9 +67,9 @@ data {
 
 transformed data{
 	real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
-	// real < lower =0 > aux1_global = 2;
-	// real < lower =0 > aux2_global = 1;
-	// real < lower =0 > caux = 1;
+	real < lower =0 > aux1_global = 2;
+	real < lower =0 > aux2_global = 1;
+	real < lower =0 > caux = 1;
 
 	// Overdispersion of Dirichlet-multinomial
 	// real<lower=0> od_inflection = 5.775609e+00;
@@ -81,7 +81,7 @@ parameters {
 	// Linear model
 	row_vector[G] inflection;
 	vector[G] log_y_cross;
-	real<lower=0> log_y_cross_prior[2];
+	//real<lower=0> log_y_cross_prior[2];
 	vector[G] beta1_z[R_1];
 	vector[T] normalization;
 
@@ -93,9 +93,6 @@ parameters {
 	// Horseshoe
 	vector < lower =0 >[ G] aux1_local ;
 	vector < lower =0 >[ G] aux2_local ;
-	real < lower =0 > aux1_global;
-	real < lower =0 > aux2_global;
-	real < lower =0 > caux;
 
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
@@ -139,8 +136,8 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
 	inflection ~ normal(0 ,5);
-	log_y_cross ~ gamma_log(exp(log_y_cross_prior[1]) * inv(exp(log_y_cross_prior[2])), inv(exp(log_y_cross_prior[2])) );
-	log_y_cross_prior ~ normal(0,5);
+	log_y_cross ~ normal(0,2); //gamma_log(exp(log_y_cross_prior[1]) * inv(exp(log_y_cross_prior[2])), inv(exp(log_y_cross_prior[2])) );
+	//log_y_cross_prior ~ normal(0,5);
 
 	normalization ~ normal(0,1);
 	sum(normalization) ~ normal(0, 0.01*T);
