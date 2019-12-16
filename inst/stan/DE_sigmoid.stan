@@ -1,9 +1,13 @@
 functions{
-
-  vector log_gen_inv_logit(row_vector y_log, row_vector b0, vector log_y_cross) {
-    return  log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y_log)  ) ;
+  
+  vector log_gen_inv_logit(row_vector y_log, row_vector b0, vector log_y_cross, vector A) {
+     vector[rows(y_log)] x = log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y_log)  ) ;
+     vector[rows(y_log)] x_shift;
+     
+     for(i in 1:rows(y_log)) x_shift[i]=log_sum_exp(A[i], x[i]);
+     return x_shift;
   }
-
+  
 	real gamma_log_lpdf(vector x_log, real a, real b){
 
 		vector[rows(x_log)] jacob = x_log; //jacobian
@@ -83,16 +87,16 @@ parameters {
 	vector[G] log_y_cross;
 	//real<lower=0> log_y_cross_prior[2];
 	vector[G] beta1_z[R_1];
-	vector[T] normalization;
+	//vector[T] normalization;
 
 	// // Overdispersion of Dirichlet-multinomial
 	real<lower=0> od_inflection;
 	real<lower=0> od1;
 	real<lower=0> od_k;
+	
+	// Vertical Translation
+	vector [G] A; //Vertical Translation (No bounds)
 
-	// Horseshoe
-	vector < lower =0 >[ G] aux1_local ;
-	vector < lower =0 >[ G] aux2_local ;
 
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
@@ -107,47 +111,33 @@ transformed parameters {
 	real od0 = -od_inflection * od1;
 
 	// Building matrix factors of interest
-	beta[2] = to_row_vector(
-		reg_horseshoe(
-			beta1_z[1],
-			aux1_global ,
-			aux2_global,
-			aux1_local ,
-			aux2_local ,
-			caux,
-			scale_global,
-			slab_scale
-		)
-	);
-		if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
+  beta[2] = to_row_vector(beta1_z[1]);
+	if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
 
-	# Inflection point
+	// Inflection point
 	beta[1] = to_row_vector(-inflection .* beta[2]);
 
 	// Calculation of generalised logit
-	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], log_y_cross) ;
+	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], log_y_cross, A);
 
 	// Overdispersion for negative binomial
 	for(t in 1:T) overdispersion[t] = 1 + gen_inv_logit_overdispersion(od0 + od1 * y_hat[t],  inv(od_k) ) ;
 
+  //Vertical Translation
 }
 model {
 
 	// Linear system
-	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
+	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 2);
 	inflection ~ normal(0 ,5);
 	log_y_cross ~ normal(0,2); //gamma_log(exp(log_y_cross_prior[1]) * inv(exp(log_y_cross_prior[2])), inv(exp(log_y_cross_prior[2])) );
 	//log_y_cross_prior ~ normal(0,5);
 
-	normalization ~ normal(0,1);
-	sum(normalization) ~ normal(0, 0.01*T);
-
-	// Horseshoe
-	aux1_local ~ normal (0 , 1);
-	aux2_local ~ inv_gamma (0.5* nu_local , 0.5* nu_local );
-	// aux1_global ~ normal (0 , 1);
-	// aux2_global ~ inv_gamma (0.5* nu_global , 0.5* nu_global );
-	// caux ~ inv_gamma (0.5* slab_df , 0.5* slab_df );
+	// normalization ~ normal(0,1);
+	// sum(normalization) ~ normal(0, 0.001*T);
+	
+	//Vertical Translation
+	A ~ normal(0, 2);
 
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
@@ -158,7 +148,7 @@ model {
 	od_k ~ normal(0,1);
 
 	// Likelihood
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  normalization[t] + y_hat[t],  overdispersion[t]);
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(  y_hat[t],  overdispersion[t]);
 
 }
 
@@ -168,7 +158,7 @@ generated quantities{
 
 	// Generate the data
 	for (t in 1:T) for(g in 1:G)
-		y_gen[t,g] = neg_binomial_2_log_rng(  normalization[t] + y_hat[t,g],  overdispersion[t,g] );
+		y_gen[t,g] = neg_binomial_2_log_rng(   y_hat[t,g],  overdispersion[t,g] );
 
 		// for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1] + 1, inv(log_y_cross_prior[2] * 100)  ) );
 
