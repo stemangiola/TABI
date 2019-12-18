@@ -3,9 +3,13 @@
 #'
 #' @return The model
 #'
-get_sigmoid_model = function(){
+get_sigmoid_model = function(x){
+  if (x=="vert") {
   #stanmodels$DE_sigmoid ##This should be the variant for release
-  rstan::stan_model(here::here("src","stan_files","DE_sigmoid.stan"))
+  rstan::stan_model(here::here("inst","stan","DE_sigmoid_one_gene_vert_trans.stan"))
+    }
+  else if (x=="none") { 
+    rstan::stan_model(here::here("inst","stan","DE_sigmoid_one_gene.stan")) } 
 }
 
 
@@ -25,7 +29,7 @@ sigmoid_link = function(
 	prior,
 	iter,
 	warmup,
-	model = get_sigmoid_model(),
+	model = get_sigmoid_model(x),
 	control=list(
 		adapt_delta=0.8,
 		stepsize = 0.1,
@@ -56,7 +60,7 @@ sigmoid_link = function(
 	# Run model
 	fit =
 		sampling(
-			stanmodels$DE_sigmoid, #model,
+			model, #model,
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
