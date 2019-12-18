@@ -1,13 +1,9 @@
 functions{
-  
-  vector log_gen_inv_logit(row_vector y_log, row_vector b0, vector log_y_cross, vector A) {
-     vector[rows(y_log)] x = log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y_log)  ) ;
-     vector[rows(y_log)] x_shift;
-     
-     for(i in 1:rows(y_log)) x_shift[i]=log_sum_exp(A[i], x[i]);
-     return x_shift;
+
+  vector log_gen_inv_logit(row_vector y_log, row_vector b0, vector log_y_cross) {
+    return  log_y_cross + log1p_exp(-to_vector(b0)) - log1p_exp(- to_vector(y_log)  ) ;
   }
-  
+
 	real gamma_log_lpdf(vector x_log, real a, real b){
 
 		vector[rows(x_log)] jacob = x_log; //jacobian
@@ -93,9 +89,7 @@ parameters {
 	real<lower=0> od_inflection;
 	real<lower=0> od1;
 	real<lower=0> od_k;
-	
-	// Vertical Translation
-	vector [G] A; //Vertical Translation (No bounds)
+
 
 
 	// Non sparse sigma
@@ -114,16 +108,15 @@ transformed parameters {
   beta[2] = to_row_vector(beta1_z[1]);
 	if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
 
-	// Inflection point
+	# Inflection point
 	beta[1] = to_row_vector(-inflection .* beta[2]);
 
 	// Calculation of generalised logit
-	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], log_y_cross, A);
+	for(t in 1:T) y_hat[t] = log_gen_inv_logit(X[t] * beta, beta[1], log_y_cross) ;
 
 	// Overdispersion for negative binomial
 	for(t in 1:T) overdispersion[t] = 1 + gen_inv_logit_overdispersion(od0 + od1 * y_hat[t],  inv(od_k) ) ;
 
-  //Vertical Translation
 }
 model {
 
@@ -135,9 +128,7 @@ model {
 
 	// normalization ~ normal(0,1);
 	// sum(normalization) ~ normal(0, 0.001*T);
-	
-	//Vertical Translation
-	A ~ normal(0, 2);
+
 
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
