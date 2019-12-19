@@ -3,15 +3,10 @@
 #'
 #' @return The model
 #'
-get_sigmoid_model = function(x){
-  if (x=="vert") {
+get_sigmoid_model = function() {
   #stanmodels$DE_sigmoid ##This should be the variant for release
-  rstan::stan_model(here::here("inst","stan","DE_sigmoid_one_gene_vert_trans.stan"))
+  rstan::stan_model(here::here("inst","stan","DE_sigmoid_one_gene_vert_trans_corrected.stan"))
     }
-  else if (x=="none") { 
-    rstan::stan_model(here::here("inst","stan","DE_sigmoid_one_gene.stan")) } 
-}
-
 
 #' Perform generalised linear model on RNA seq data
 #'
@@ -29,7 +24,7 @@ sigmoid_link = function(
 	prior,
 	iter,
 	warmup,
-	model = get_sigmoid_model(x),
+	model = get_sigmoid_model(),
 	control=list(
 		adapt_delta=0.8,
 		stepsize = 0.1,
@@ -60,7 +55,7 @@ sigmoid_link = function(
 	# Run model
 	fit =
 		sampling(
-			model, #model,
+			model = stanmodels$DE_sigmoid_one_gene_vert_trans_corrected, #model,
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
