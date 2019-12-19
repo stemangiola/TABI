@@ -1,0 +1,246 @@
+---
+title: "Test_Comparasion_Vert_Trans"
+author: "Isobel Beasley"
+date: "18/12/2019"
+output: 
+html_document: 
+  toc: yes
+  toc_depth: 3
+  number_sections: true
+  theme: readable
+  highlight: null
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE, fig.height=10, fig.width = 12, warning=FALSE, message=FALSE, eval = TRUE, fig.show=TRUE, fig.align='center', out.width = '100%')
+```
+
+```{r loading packages}
+#Load Required Packages
+library(ggplot2)
+library(dplyr)
+library(rstan)
+library(bayesplot)
+#TABI
+if("package:TABI" %in% search()) detach("package:TABI", unload=TRUE, force=TRUE); library(TABI)  
+```
+
+#Create Function to Simulate + A data 
+
+```{r}
+#Create Function 
+eq <- function(x) {
+  eta=4
+  beta=2
+  y_0=20
+  A=5000
+  top<- (y_0*(1+exp(eta*beta)))
+  bottom<-(1+exp(eta*beta-x*beta))
+  return(top/bottom + A) }
+
+#Plot CUrve
+ggplot(data.frame(x=c(0,8)), aes(x=x)) + 
+  stat_function(fun=eq, geom="line")	+ 
+  labs(title="True Positive Curve", x="CAPRA-S", y="Normalised Gene Count")
+```
+
+#Create Data Frame / Testing with TABI
+
+```{r}
+y_exp<-sapply(seq(from=0, to=8, by=0.01), FUN=eq) #Expected Value for each CAPRA_S score
+x_val=seq(from=0, to=8, by=0.01) #Corresponding CAPRA_S scores
+
+
+#Simulate test data with negative binomial distributed genes count
+y_sim<- rnbinom(length(y_exp), mu=y_exp, size=30) 
+#Create Data Frame for Testing with TABI 
+Test_TP<-data.frame(CAPRA_S=seq(from=0, to=8, by=0.01), y_sim_gene = y_sim)
+
+
+TABI_TP<-TABI_glm(formula= ~CAPRA_S, 
+                  data= Test_TP, 
+                  prop_DE =0.1, 
+                  scale_DE = 5, 
+                  model = get_sigmoid_model("vert"))
+
+TABI_TP$generated_quantities %>% ggplot() +geom_point(aes(x=seq(from=0, to=8, by=0.01), y=estimate), colour="blue", data=TABI_TP$generated_quantities) +  stat_function(fun=eq, geom="line")
+
+```
+
+```{r}
+traceplot(TABI_TP$fit)
+pairs(TABI_TP$fit, pars=c("inflection[1]", "log_y_cross[1]", "beta", "A", "od_k", "od_inflection", "od1"))
+```
+
+```{r}
+data.frame(x_val=seq(from=0, to=8, by=0.01), y_sim) %>% 
+  ggplot(aes(x=x_val, y=y_sim)) +
+  geom_point() +  
+  stat_function(fun=eq, geom="line") +
+  geom_point(aes(x=seq(from=0, to=8, by=0.01), y=estimate), colour="blue", data=TABI_TP$generated_quantities)
+```
+
+# CDKN2B
+
+## Data Preparation for TABI 
+
+```{r}
+Test_Real_CDKN2B<-PC_TCGA %>% 
+  filter(transcript=="CDKN2B") %>% 
+  select(-transcript) %>% 
+  rename(CDKN2B= `read count normalised` , CAPRA_S = `CAPRA-S`) %>% 
+  filter(is.na(CAPRA_S)==F, is.na(CDKN2B)==F)
+
+
+#Define CAPRA_S
+CAPRA_S <- Test_Real_CDKN2B$CAPRA_S
+```
+
+## Run TABI (with and without vertical translation factor 'A')
+
+```{r}
+TABI_CDKN2B_Vert<-TABI_glm(formula= ~CAPRA_S, 
+											data= Test_Real_CDKN2B, 
+											prop_DE =0.1,
+											scale_DE = 5, 
+											model= get_sigmoid_model("vert"))
+
+
+TABI_CDKN2B_None<-TABI_glm(formula= ~CAPRA_S, 
+											data= Test_Real_CDKN2B, 
+											prop_DE =0.1,
+											scale_DE = 5, 
+											model= get_sigmoid_model("none"))
+```
+
+## Posterior Diagnostic Checks 
+
+```{r}
+traceplot(TABI_CDKN2B_None$fit)
+traceplot(TABI_CDKN2B_Vert$fit)
+```
+
+##  What does TABI estimate/sample for this gene? / How does this compare to the actual data?
+
+```{r}
+Test_Real_CDKN2B %>% 
+  ggplot(aes(x=CAPRA_S, y=CDKN2B)) + 
+  geom_point() +
+  labs(title="CDKN2B (Vertical Translation)", y="read count normalised") + 
+  geom_point(aes(x=x_cord, y=estimate), data = TABI_CDKN2B_Vert$generated_quantities %>% ungroup() %>% mutate(x_cord = CAPRA_S), color = "red")
+
+Test_Real_CDKN2B %>% 
+  ggplot(aes(x=CAPRA_S, y=CDKN2B)) + 
+  geom_point() +
+  labs(title="CDKN2B (No Translation)", y="read count normalised") + 
+  geom_point(aes(x=x_cord, y=estimate), data = TABI_CDKN2B_None$generated_quantities %>% ungroup() %>% mutate(x_cord = CAPRA_S), color = "blue")
+
+
+#Together Same Plot
+Test_Real_CDKN2B %>% 
+  ggplot(aes(x=CAPRA_S, y=CDKN2B)) + 
+  geom_point() +
+  labs(title="CDKN2B (Blue, no translation, Red translation", y="read count normalised") + 
+  geom_point(aes(x=x_cord, y=estimate), data = TABI_CDKN2B_Vert$generated_quantities %>% ungroup() %>% mutate(x_cord = CAPRA_S), color = "red") +
+  geom_point(aes(x=x_cord, y=estimate), data = TABI_CDKN2B_None$generated_quantities %>% ungroup() %>% mutate(x_cord = CAPRA_S), color = "blue", alpha=0.3)
+```
+
+# SLC22A3
+
+## Data Preparation for TABI 
+
+```{r}
+Test_Real_SLC22A3<-PC_TCGA %>% 
+  filter(transcript=="SLC22A3") %>% 
+  select(-transcript) %>% 
+  rename(SLC22A3= `read count normalised` , CAPRA_S = `CAPRA-S`) %>% 
+  filter(is.na(CAPRA_S)==F, is.na(SLC22A3)==F)
+
+CAPRA_S <- Test_Real_SLC22A3$CAPRA_S
+```
+
+## Run TABI (with and without vertical translation factor 'A')
+
+```{r}
+TABI_SLC22A3_Vert<-TABI_glm(formula= ~CAPRA_S, 
+                           data= Test_Real_SLC22A3, 
+                           prop_DE =0.1,
+                           scale_DE = 5, 
+                           model= get_sigmoid_model("vert"))
+
+
+TABI_SLC22A3_None<-TABI_glm(formula= ~CAPRA_S, 
+                           data= Test_Real_SLC22A3, 
+                           prop_DE =0.1,
+                           scale_DE = 5, 
+                           model= get_sigmoid_model("none"))
+```
+
+## Posterior Diagnostic Checks 
+
+```{r}
+traceplot(TABI_SLC22A3_Vert$fit)
+traceplot(TABI_SLC22A3_None$fit)
+```
+
+##  What does TABI estimate/sample for this gene? / How does this compare to the actual data?
+
+```{r}
+Test_Real_SLC22A3 %>% 
+  ggplot(aes(x=CAPRA_S, y=SLC22A3)) + 
+  geom_point() +
+  labs(title="SLC22A3 (Vertical Trans =Red, None= Blue)", y="read count normalised") + 
+  geom_point(aes(x=x_cord, y=estimate), data = TABI_SLC22A3_Vert$generated_quantities %>% ungroup() %>% mutate(x_cord = CAPRA_S), color = "red") + 
+  geom_point(aes(x=x_cord, y=estimate), data = TABI_SLC22A3_None$generated_quantities %>% ungroup() %>% mutate(x_cord = CAPRA_S), color = "blue", alpha=0.3)
+
+```
+
+#NUSAP1
+
+## Data Preparation for TABI 
+
+```{r}
+Test_Real_NUSAP1<-PC_TCGA %>% 
+  filter(transcript=="NUSAP1") %>% 
+  select(-transcript) %>% 
+  rename(NUSAP1= `read count normalised` , CAPRA_S = `CAPRA-S`) %>% 
+  filter(is.na(CAPRA_S)==F, is.na(NUSAP1)==F)
+
+CAPRA_S <- Test_Real_NUSAP1$CAPRA_S
+```
+
+## Run TABI (with and without vertical translation factor 'A')
+
+```{r}
+TABI_NUSAP1_Vert<-TABI_glm(formula= ~CAPRA_S, 
+                            data= Test_Real_NUSAP1, 
+                            prop_DE =0.1,
+                            scale_DE = 5, 
+                            model= get_sigmoid_model("vert"))
+
+TABI_NUSAP1_None<-TABI_glm(formula= ~CAPRA_S, 
+                            data= Test_Real_NUSAP1, 
+                            prop_DE =0.1,
+                            scale_DE = 5, 
+                            model= get_sigmoid_model("none"))
+```
+
+## Posterior Diagnostic Checks 
+
+```{r}
+traceplot(TABI_NUSAP1_Vert$fit)
+
+traceplot(TABI_NUSAP1_Nonet$fit)
+```
+
+##  What does TABI estimate/sample for this gene? / How does this compare to the actual data?
+
+```{r}
+Test_Real_NUSAP1 %>% 
+  ggplot(aes(x=CAPRA_S, y=NUSAP1+1)) + 
+  geom_point() +
+  labs(title="NUSAP1, red vertical translation, blue - none", y="read count normalised") + 
+  geom_point(aes(x=x_cord, y=estimate), data = TABI_NUSAP1_Vert$generated_quantities %>% ungroup() %>% mutate(x_cord = CAPRA_S), color = "red") + 
+  geom_point(aes(x=x_cord, y=estimate), data = TABI_NUSAP1_None$generated_quantities %>% ungroup() %>% mutate(x_cord = CAPRA_S), color = "blue", alpha=0.1) +
+  scale_y_log10()
+```
