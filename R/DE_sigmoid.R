@@ -5,7 +5,7 @@
 #'
 get_sigmoid_model = function() {
   #stanmodels$DE_sigmoid ##This should be the variant for release
-  rstan::stan_model(here::here("inst","stan","DE_sigmoid_one_gene_vert_trans_corrected_1.stan"))
+  rstan::stan_model(here::here("inst","stan","DE_sigmoid_one_gene_vert_log_space.stan"))
     }
 
 #' Perform generalised linear model on RNA seq data
@@ -51,11 +51,11 @@ sigmoid_link = function(
 	par_ratio = prior$prop_DE
 	slab_df = prior$slab_df
 	slab_scale = prior$scale_DE
-
+	
 	# Run model
 	fit =
 		sampling(
-			stanmodels$DE_sigmoid_one_gene_vert_trans_corrected_1, #model,
+		  stanmodels$DE_sigmoid_one_gene_vert_log_space, #model,
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
@@ -168,3 +168,4 @@ simulate_from_sigmoid = function(delta_magnitude = 5, n_genes = 100, changing_ge
 	)
 
 }
+
