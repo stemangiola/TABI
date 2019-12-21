@@ -84,7 +84,7 @@ transformed data{
 parameters {
 	// Linear model
 	row_vector[G] inflection;
-	vector[G] log_y_cross;
+	vector[G] log_y_cross; //y_cross (No Bounds)
 	//real<lower=0> log_y_cross_prior[2];
 	vector[G] beta1_z[R_1];
 	//vector[T] normalization;
@@ -130,14 +130,14 @@ model {
 	// Linear system
 	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 2);
 	inflection ~ normal(0 ,5);
-	log_y_cross ~ normal(0,2); //gamma_log(exp(log_y_cross_prior[1]) * inv(exp(log_y_cross_prior[2])), inv(exp(log_y_cross_prior[2])) );
+	log_y_cross ~ normal(0,5); //gamma_log(exp(log_y_cross_prior[1]) * inv(exp(log_y_cross_prior[2])), inv(exp(log_y_cross_prior[2])) );
 	//log_y_cross_prior ~ normal(0,5);
 
 	// normalization ~ normal(0,1);
 	// sum(normalization) ~ normal(0, 0.001*T);
 	
 	//Vertical Translation
-	A ~ normal(0, 2);
+	A ~ normal(0, 5);
 
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
