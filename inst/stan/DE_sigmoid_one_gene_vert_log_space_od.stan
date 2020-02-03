@@ -13,36 +13,7 @@ functions{
 
 	}
 
-  vector reg_horseshoe(
-					vector zb,
-					real aux1_global ,
-					real aux2_global,
-					vector  aux1_local ,
-					vector aux2_local ,
-					real  caux,
-					real scale_global ,
-					real slab_scale
-					) {
-    int K = rows(zb);
-
-    // Horseshoe variables
-		real tau ; // global shrinkage parameter
-		vector [ K] lambda ; // local shrinkage parameter
-		vector [ K] lambda_tilde ; // ’ truncated ’ local shrinkage parameter
-		real c; // slab scale
-
-		// Horseshoe calculation
-		lambda = aux1_local .* sqrt ( aux2_local );
-		tau = aux1_global * sqrt ( aux2_global ) * scale_global * 1 ;
-		c = slab_scale * sqrt ( caux );
-		lambda_tilde = sqrt ( c ^2 * square ( lambda ) ./ (c ^2 + tau ^2* square ( lambda )) );
-		return  zb .* lambda_tilde * tau ;
-  }
-
-	vector gen_inv_logit_overdispersion(vector y, real k) {
-			// It uses the empirical mean of x axes instead of 0
-	    return k ./ (1 + exp(-y));
-	}
+ 
 
 }
 
@@ -85,11 +56,11 @@ parameters {
 	vector[G] beta1_z[R_1];
 	//vector[T] normalization;
 
-	// // Overdispersion of Dirichlet-multinomial
+// Overdispersion
 	real od;
-	
 	//Vertical Translatioon
 	vector[G] A;
+	
 
 	// Non sparse sigma
 	vector<lower=0>[R_1-1] non_sparse_sigma;
@@ -100,7 +71,7 @@ transformed parameters {
 
 	matrix[R_1+1, G] beta;
 	vector[G] y_hat[T];
-
+	vector[G] phi[T];
   vector[G] y_cross = y_cross_raw + A;
   
 	// Building matrix factors of interest
@@ -112,7 +83,10 @@ transformed parameters {
 
 	// Calculation of generalised logit
 	for(t in 1:T) y_hat[t] = gen_inv_logit(X[t] * beta, beta[1], y_cross, A);
-
+	
+	//Calculation of Overdispersion 
+	for(t in 1:T) phi[t] = -0.3186 * y_hat[t] + od;
+	//phi[,1] = y_hat[,1] * -0.3186 + 0.7847; 
 }
 model {
 
@@ -127,15 +101,15 @@ model {
 	
 	//Vertical Translation
 	A ~ normal(0,2);
+	
+	od ~ normal(0,2);
 
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 
-	// overdispersion
-	od ~ normal(0,2);
-
 	// Likelihood
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(y_hat[t],  1/exp(od));
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log	(y_hat[t], 1 ./ exp(phi[t]));
+
 
 }
 
@@ -145,7 +119,7 @@ generated quantities{
 
 	// Generate the data
 	for (t in 1:T) for(g in 1:G)
-		y_gen[t,g] = neg_binomial_2_log_rng(   y_hat[t,g], 1/exp(od) );
+		y_gen[t,g] = neg_binomial_2_log_rng(   y_hat[t,g], 1 ./ exp(phi[t,g]));
 
 		// for(g in 1:G) gamma_log_sampling[g] = log( gamma_rng(log_y_cross_prior[1] + 1, inv(log_y_cross_prior[2] * 100)  ) );
 
