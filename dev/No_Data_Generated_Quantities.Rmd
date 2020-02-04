@@ -72,6 +72,11 @@ gen_data_plot %>%
   ggplot(aes(x=CAPRA_S,  y=.value)) + 
   geom_point() 
 
+#Plot of actual data to show that it is unrelated to generated data
+normalised_PC_TCGA %>% 
+  ggplot(aes(x=CAPRA_S, y=`read_count normalised`)) +
+  geom_point()
+
 ```
 
 ## Compare Posterior of inflection and slope
