@@ -115,52 +115,13 @@ TABI_glm(formula = ~CAPRA_S,
           scale_DE =5,
           model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_vert_log_space_od.stan"))
 
-h<-TABI_glm(formula =~purity.score +CAPRA_S, 
-         data = normalised_PC_TCGA %>% 
-           filter(transcript == "AARD") %>% 
-  filter(is.na(CAPRA_S) ==F) %>% 
-  select(CAPRA_S, purity.score, `read_count normalised`),
-prop_DE =  0.1,
-scale_DE =5,
-model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_log_space_od.stan"))
-
-library(rstan)
-library(dplyr)
-library(tibble)
-as.data.frame(summary(h$fit)$summary) %>% #Extract summary of those 
-  rownames_to_column("parameters") %>%
-  as_tibble() %>%
-  filter(grepl("y_gen", parameters))
 
 
-as.data.frame(summary( #Summarise stanfit object
-  # Call TABI
-  (TABI_glm(formula = ~CAPRA_S+purity.score, 
-            data = normalised_PC_TCGA %>% filter(transcript == gene) %>% filter(is.na(transcript)==F, is.na(CAPRA_S)==F) %>% select(-transcript, -TMM, -purity.score),
-            prop_DE =  0.1,
-            scale_DE =5,
-            model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_log_space_od.stan")))
-  #Extract the stanfit object
-  $fit)$summary) %>% #Extract summary of those 
-  rownames_to_column("parameters") %>% #Make row names (which are names of paramters) explicit column 
-  as_tibble() %>% 
-  filter(!grepl("y_hat", parameters), !grepl("y_gen", parameters), !grepl("phi", parameters)) %>% #Remove rows with y_hat and y_gen 
-  mutate(Gene_name = gene)
-
-test<- data.frame(CAPRA_S = seq(from=0, to=7, by=0.05),  
-                  read_count =  rnbinom(n = length(seq(from=0, to=7, by=0.05)), size = 0.007, mu = seq(from=0, to=7, by=0.05)) ) 
 
 
-TABI_glm(formula = ~CAPRA_S, 
-         data = test,
-         prop_DE =  0.1,
-         scale_DE =5,
-         model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_log_space_od.stan"))
-
-#-5.773 -1
 
 
-#Complete Fit Save
+#Complete $fit Save function 
 fit_total<- function(gene_number) {
   #Name Gene to Test
   gene<- levels(normalised_PC_TCGA$transcript)[gene_number]
@@ -187,16 +148,14 @@ fit_total<- function(gene_number) {
                 data = normalised_PC_TCGA %>% filter(transcript == gene) %>% filter(is.na(transcript)==F, is.na(CAPRA_S)==F) %>% select(-transcript, -TMM, -purity.score),
                 prop_DE =  0.1,
                 scale_DE =5,
-                model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_log_space_od.stan"))$fit
+                model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_vert_log_space_od.stan"))$fit
     
     
     
   }
 }
 
-#fit for CAPRA_S + purity.score
-
-
+#Fit for CAPRA_S + purity.score (purity as a covariate)
 fit_purity<- function(gene_number) {
   #Name Gene to Test
   gene<- levels(normalised_PC_TCGA$transcript)[gene_number]
@@ -223,7 +182,7 @@ fit_purity<- function(gene_number) {
                 data = normalised_PC_TCGA %>% filter(transcript == gene) %>% filter(is.na(transcript)==F, is.na(CAPRA_S)==F) %>% select(-transcript, -TMM, -purity.score),
                 prop_DE =  0.1,
                 scale_DE =5,
-                model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_log_space_od.stan")))
+                model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_vert_log_space_od.stan")))
       #Extract the stanfit object
       $fit)$summary) %>% #Extract summary of those 
       rownames_to_column("parameters") %>% #Make row names (which are names of paramters) explicit column 
@@ -236,6 +195,7 @@ fit_purity<- function(gene_number) {
   }
 }
 
+test_disp$generated_quantities
 #Complete Fit Save
 fit_total<- function(gene_number) {
   #Name Gene to Test
@@ -270,16 +230,12 @@ fit_total<- function(gene_number) {
   }
 }
 
-normalised_PC_TCGA
-
-normalised_PC_TCGA$`read_count normalised`
-
-normalised_PC_TCGA <- ed_normalised_PC_TCGA
 
 #Create parallelisation loop
 
 library(foreach)
 
+#Number of 
 length(levels(normalised_PC_TCGA$transcript))
 
 fit_purity_p1 <- foreach(i=sample.int(37318, 100), .packages=c('TABI', 'dplyr', 'rstan', 'tibble'), .combine="rbind") %dopar% {
@@ -363,17 +319,18 @@ Greater_total_1000<-foreach(i=1:1000, .packages=c('TABI', 'dplyr', 'rstan', 'tib
 
 
 data_disp <- data.frame(CAPRA_S = seq(from=0, to=7, by=0.005),  
-                        read =  rnbinom(n = length(seq(from=0, to=7, by=0.005)), size = 0.01, mu = exp(CAPRA_S))) 
+                        read =  rnbinom(n = length(seq(from=0, to=7, by=0.005)), size = 0.01, mu = exp(seq(from=0, to=7, by=0.005)))) 
 
 data_disp %>% 
-  ggplot(aes(x = CAPRA_S, y = read_count)) +geom_point()
+  ggplot(aes(x = CAPRA_S, y = read)) +geom_point()
 
 test_disp<-TABI_glm(
   formula = ~CAPRA_S, 
   data  = data_disp, 
   prop_DE =  0.1,
   scale_DE =5,
-  model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_log_space_od.stan"))
+  model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_vert_log_space_od.stan", auto_write = F)
+  )
 
 #Comparing TABI generated data with + simulated data
 
@@ -388,7 +345,7 @@ tp<-TABI_glm(
   data = normalised_PC_TCGA %>% filter(transcript =="A1BG") %>% filter(is.na(CAPRA_S)==F, is.na(`read_count normalised`==F)) %>% select(-TMM, - purity.score, -transcript),
   prop_DE =  0.1,
   scale_DE =5,
-  model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_log_space_od.stan"))
+  model = rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_one_gene_vert_log_space_od.stan"))
 
 TABI_glm(
   formula=~purity.score +CAPRA_S, 
