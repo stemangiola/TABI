@@ -1,7 +1,13 @@
 #Parallel TABI using purity as a covariate 
 #Getting fit for all values 
 
+library(TABI)
+library(tibble)
+library(rstan)
+library(dplyr)
+
 #load compressed  RDS file for CAPRA_S moved from 8 to 7, and also with na removed
+normalised_PC_TCGA <- readRDS("/stornext/Home/data/allstaff/b/beasley.i/TABI/compress_normalised_narm_TCGA.rds")
 
 
 #Function for saving fitting table 
@@ -47,8 +53,7 @@ fit_purity<- function(gene_number) {
 }
 
 
-
-#Function for just saving fit
+#Function for saving entire stanfit file
 fit_total_purity<- function(gene_number) {
   #Name Gene to Test
   gene<- levels(normalised_PC_TCGA$transcript)[gene_number]
@@ -85,16 +90,29 @@ fit_total_purity<- function(gene_number) {
 
 
 
-#Function for saving entire TABI 
+#Function for saving entire TABI output
 
 
 
-#Setting up parallel
+#Setting up parallelisation
 library(doParallel)
 library(bigstatsr)
 
 cl <- parallel::makeCluster(bigstatsr::nb_cores())
 doParallel::registerDoParallel(cl)
+
+library(foreach)
+
+#To create important fit table for plotting etc. 
+#First 1000 genes
+
+fit_table_purity_1000<-foreach(i=1:1000,.packages=c('TABI', 'dplyr', 'rstan', 'tibble'), .combine="rbind") %dopar% {
+  fit_purity(i) }
+
+test_100<-foreach(i=1:100,.packages=c('TABI', 'dplyr', 'rstan', 'tibble'), .combine="rbind") %dopar% {
+  fit_purity(i) }
+
+
 
 
 
