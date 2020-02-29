@@ -24,6 +24,7 @@
 #' @importFrom dplyr pull
 #' @importFrom dplyr arrange
 #' @importFrom dplyr left_join
+#' @importFrom dplyr enquo
 #'
 #' @importFrom purrr is_numeric
 #'
@@ -82,13 +83,27 @@ stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
 #' @param formula A formula
 #' @param data A tibble
 #' @param link A character string
+#' @param .sample A column name
+#' @param .abundance A column name
+#' @param  .transcript A column name
+#' 
+#' @importFrom tidybulk tidybulk
+#' @importFrom dplyr mutate_if
+#' @importFrom dplyr enquo
+#' @importFrom tidyr pivot_wider
+#' @importFrom tidybulk scale_abundance
+#' @importFrom tidybulk aggregate_duplicates
+#' 
 #' @return A tibble
-#'
+#' 
 #' @export
 #'
 TABI_glm = function(
 	formula,
 	data,
+	.sample, # Sample ID column
+	.abundance, # Raw expression read column
+	.transcript, # Transcript name/ID column
 	link = "sigmoid",
 	prop_DE =0.05,
 	scale_DE = 5,
@@ -113,22 +128,74 @@ TABI_glm = function(
 		slab_df = slab_df
 	)
 
+	# Make col names
+	.sample = dplyr::enquo(.sample)
+	.transcript = dplyr::enquo(.transcript)
+	.abundance = dplyr::enquo(.abundance)
+	
+	
 	# Create design matrix
+	
+	# Create tibble of covariate data 
+	covariate_data = 
+	  data %>%
+	  select(one_of(parse_formula(formula)), 
+	         !!.sample) %>%
+	  distinct()
+	
 	X =
-		model.matrix(object = formula, data = data) %>%
-		as_tibble(rownames="sample_idx") %>%
-		scale_design(formula)
+	  model.matrix(object = formula, 
+	               data = covariate_data) %>%
+	  as_tibble(rownames="sample_idx") %>%
+	  scale_design(formula)
 
-	# Set up expression data frame
-	cn = data %>%
-		select(-one_of(parse_formula(formula))) %>%
-		colnames()
-	y =
-		data %>%
-		select(-one_of(parse_formula(formula))) %>%
-		apply(2, as.integer) %>%
-		as_tibble() %>%
-		setNames(cn)
+	# tt Object to run through tidyBulk
+	counts_tt =
+	  tidybulk::tidybulk(.data = data %>%
+	                       select(!!.sample, 
+	                              !!.transcript, 
+	                              !!.abundance) %>%
+	                       mutate_if(is.numeric, 
+	                                 as.integer) %>%
+	                       as_tibble(),
+	                     .sample = !!.sample,
+	                     .transcript = !!.transcript,
+	                     .abundance = !!.abundance)
+	
+	# Scale gene counts using tidyBulk
+	
+	counts_norm =
+	  tidybulk::aggregate_duplicates(
+	    counts_tt
+	  ) %>%
+	  tidybulk::scale_abundance(
+	    minimum_counts = 10,
+	    minimum_proportion = 0.7,
+	    method = "TMM",
+	    reference_selection_function = median,
+	    action = "add"
+	  )
+	
+	# Create tibble of normalised expression data
+	# Each column is a different gene
+	y = 
+	  counts_norm %>%
+	  select(!!.transcript, contains("scaled"), !!.sample) %>%
+	  dplyr::mutate_if(is.numeric, as.integer) %>%
+	  tidyr::pivot_wider(names_from = !!.transcript, 
+	              values_from = contains("scaled")) %>%
+	  select(-!!.sample) %>%
+	  as_tibble()
+	
+
+	# Create tibble of multiplier data
+	multiplier = 
+	  counts_norm %>%
+	  select(!!.transcript, contains("multiplier"), !!.sample) %>%
+	  tidyr::pivot_wider(names_from = !!.transcript,
+	              values_from = contains("multiplier")) %>%
+	  select(-!!.sample) %>%
+	  as_tibble()
 
 	# Return
 	c(
@@ -136,7 +203,8 @@ TABI_glm = function(
 		# Return the inputs to the model
 		input = list(
 			X = X,
-			y = y
+			y = y,
+			tidybulk_table = counts_norm
 		),
 
 		# Return the outcome of the model
@@ -144,7 +212,7 @@ TABI_glm = function(
 			link,
 			"sigmoid" =
 				sigmoid_link(
-					X, y,
+					X, y, multiplier,
 					prior,
 					iter,
 					warmup,
