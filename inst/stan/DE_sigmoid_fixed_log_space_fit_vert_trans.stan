@@ -14,10 +14,11 @@ data {
 
 	int<lower = 0> G;                   // All Genes
 	int<lower = 0> T;                   // All Samples (e.g. tube/individual)
-	int<lower=0> R_1;                   // All Covariates (Intercept, Chosen Covariate 1 ... )  
+	int<lower=0> R_1;                   // All Covariates (Intercept, Chosen Covariate 1 ... ) 
 	int<lower = 0> y[T, G];             // RNA-seq counts
 	matrix[T,R_1+1] X;                 // Design Matrix
 	int exposure[T];                 // How many reads have been sequenced for each sample
+	int<lower=0> TMM[T,G];           // TMM algorithim factor
 
 	// Horseshoe (for multiple genes)
 	real < lower =0 > par_ratio ; // proportion of 0s
@@ -73,7 +74,7 @@ transformed parameters {
 	beta[1] = to_row_vector(-inflection .* beta[2]);
 
 	// Calculation of generalised logit - fitting in log space (i.e. log of the means follows gla eq)
-	for(t in 1:T) log_y_hat[t] = gla_eq_2(beta[1] + X[t] * beta, beta[1], y_cross, A);
+	for(t in 1:T) log_y_hat[t] = gla_eq_2(X[t] * beta + beta[1], beta[1], y_cross, A);
 	
 	//old eq for(t in 1:T) log_y_hat[t] = gla_eq_2(X[t] * beta, beta[1], y_cross, A);
 	
@@ -86,9 +87,9 @@ model {
 	// Linear system
 	//Restricted priors on beta1_z[r], and inflection (were originally n(0,2)), preventing larger generated values
 	//As these dramatically increase log_y_hat - which causes problems with neg_binomial_2_log / neg_binomial_2_log_rng
-	for(r in 1:R_1) beta1_z[r] ~ normal (0 , 1);
+	for(r in 1:R_1) beta1_z[r] ~ normal (0,1);
 	
-	inflection ~ normal(0 ,1);
+	inflection ~ normal(0,1);
 	
 	y_cross_raw ~ normal(0,1); 
 	
@@ -106,10 +107,10 @@ model {
 
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
+	
 
 	// Likelihood - fiting 
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log(log_y_hat[t], 1 ./ exp(phi[t]));
-
+	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2_log(to_vector(TMM[t]).*log_y_hat[t], 1 ./ exp(phi[t]));
 
 }
 
