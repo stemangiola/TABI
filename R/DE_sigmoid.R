@@ -5,7 +5,8 @@
 #'
 get_sigmoid_model = function() {
   #stanmodels$DE_sigmoid ##This should be the variant for release
-  rstan::stan_model(here::here("inst","stan","DE_sigmoid_fixed_log_space_fit_vert_trans.stan"))
+  #rstan::stan_model(here::here("inst","stan","DE_sigmoid_norm_factor_log_space_fit_vert_trans.stan"))
+  rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_fixed_log_space_fit_vert_trans.stan", auto_write = T)
     }
 
 #' Perform generalised linear model on RNA seq data
@@ -21,10 +22,12 @@ get_sigmoid_model = function() {
 sigmoid_link = function(
 	X,
 	y,
+	multiplier,
 	prior,
 	iter,
 	warmup,
 	model = get_sigmoid_model(),
+	#rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_norm_log_space_fit_vert_trans.stan", auto_write = T),
 	control=list(
 		adapt_delta=0.8,
 		stepsize = 0.1,
@@ -55,7 +58,7 @@ sigmoid_link = function(
 	# Run model
 	fit =
 		sampling(
-		  stanmodels$DE_sigmoid_fixed_log_space_fit_vert_trans, #model
+		  model,
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
@@ -74,7 +77,7 @@ sigmoid_link = function(
 
 		# Produce output table posterior
 		posterior_df = fit %>%
-			gather_samples(beta[covariate_idx, gene_idx]) %>%
+		  tidybayes::gather_draws(beta[covariate_idx, gene_idx]) %>%
 			left_join(
 				tibble(
 					gene_idx = 1:ncol(y),
@@ -85,7 +88,7 @@ sigmoid_link = function(
 
 		# Generated quantities
 		generated_quantities = fit %>%
-			gather_samples(y_gen[sample_idx, gene_idx] ) %>%
+			tidybayes::gather_draws(y_gen[sample_idx, gene_idx] ) %>%
 			mean_qi()
 
 	)
