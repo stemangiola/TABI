@@ -81,7 +81,7 @@ stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
 #' Perform generalised linear model on RNA seq data
 #'
 #' @param formula A formula
-#' @param data A tibble
+#' @param .data A tibble
 #' @param link A character string
 #' @param .sample A column name
 #' @param .abundance A column name
@@ -99,11 +99,11 @@ stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
 #' @export
 #'
 TABI_glm = function(
-	formula,
-	data,
+  .data,
+  formula,
 	.sample, # Sample ID column
-	.abundance, # Raw expression read column
 	.transcript, # Transcript name/ID column
+	.abundance, # Raw expression read column
 	link = "sigmoid",
 	prop_DE =0.05,
 	scale_DE = 5,
@@ -136,9 +136,9 @@ TABI_glm = function(
 	
 	# Create design matrix
 	
-	# Create tibble of covariate data 
+	# Create tibble of covariate .data 
 	covariate_data = 
-	  data %>%
+	  .data %>%
 	  select(one_of(parse_formula(formula)), 
 	         !!.sample) %>%
 	  distinct()
@@ -151,7 +151,7 @@ TABI_glm = function(
 
 	# tt Object to run through tidyBulk
 	counts_tt =
-	  tidybulk::tidybulk(.data = data %>%
+	  tidybulk::tidybulk(.data = .data %>%
 	                       select(!!.sample, 
 	                              !!.transcript, 
 	                              !!.abundance) %>%
