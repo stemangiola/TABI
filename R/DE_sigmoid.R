@@ -33,7 +33,8 @@ sigmoid_link = function(
 		stepsize = 0.1,
 		max_treedepth =10
 	),
-	prior_only = 0
+	prior_only = 0,
+	shards = 1
 ){
 
 	#######################################
@@ -54,9 +55,7 @@ sigmoid_link = function(
 	par_ratio = prior$prop_DE
 	slab_df = prior$slab_df
 	slab_scale = prior$scale_DE
-	
-	shards = 1
-	browser()
+
 	# Run model
 	fit =
 		sampling(

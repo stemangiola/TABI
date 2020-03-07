@@ -117,7 +117,8 @@ TABI_glm = function(
 		stepsize = 0.1,
 		max_treedepth =10
 	),
-	prior_only = 0
+	prior_only = 0,
+  shards = 1
 ){
 
 	# Set prior
@@ -187,7 +188,8 @@ TABI_glm = function(
 					warmup,
 					model = model,
 					control = control,
-					prior_only = prior_only
+					prior_only = prior_only,
+					shards = shards
 				)
 		)
 	)
