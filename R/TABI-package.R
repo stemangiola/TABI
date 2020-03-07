@@ -150,52 +150,21 @@ TABI_glm = function(
 	  scale_design(formula)
 
 	# tt Object to run through tidyBulk
-	counts_tt =
-	  tidybulk::tidybulk(.data = .data %>%
-	                       select(!!.sample, 
-	                              !!.transcript, 
-	                              !!.abundance) %>%
-	                       mutate_if(is.numeric, 
-	                                 as.integer) %>%
-	                       as_tibble(),
-	                     .sample = !!.sample,
-	                     .transcript = !!.transcript,
-	                     .abundance = !!.abundance)
-	
-	# Scale gene counts using tidyBulk
-	
-	counts_norm =
-	  tidybulk::aggregate_duplicates(
-	    counts_tt
-	  ) %>%
-	  tidybulk::scale_abundance(
-	    minimum_counts = 10,
-	    minimum_proportion = 0.7,
-	    method = "TMM",
-	    reference_selection_function = median,
-	    action = "add"
-	  )
+	multiplier =
+	  .data %>%
+	  tidybulk( !!.sample, !!.transcript, !!.abundance) %>%
+	   tidybulk::aggregate_duplicates() %>%
+	  tidybulk::scale_abundance(action="get") %>%
+	  arrange(sample) %>%
+	  select(multiplier)
 	
 	# Create tibble of normalised expression data
 	# Each column is a different gene
 	y = 
-	  counts_norm %>%
-	  select(!!.transcript, contains("scaled"), !!.sample) %>%
-	  dplyr::mutate_if(is.numeric, as.integer) %>%
-	  tidyr::pivot_wider(names_from = !!.transcript, 
-	              values_from = contains("scaled")) %>%
-	  select(-!!.sample) %>%
-	  as_tibble()
-	
-
-	# Create tibble of multiplier data
-	multiplier = 
-	  counts_norm %>%
-	  select(!!.transcript, contains("multiplier"), !!.sample) %>%
-	  tidyr::pivot_wider(names_from = !!.transcript,
-	              values_from = contains("multiplier")) %>%
-	  select(-!!.sample) %>%
-	  as_tibble()
+	  .data %>%
+	  select( !!.sample, !!.transcript, !!.abundance) %>%
+	  spread(!!.transcript, !!.abundance) %>%
+	  select(-!!.sample)
 
 	# Return
 	c(
