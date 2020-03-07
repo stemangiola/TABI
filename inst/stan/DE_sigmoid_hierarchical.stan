@@ -203,7 +203,7 @@ transformed parameters {
 	
 }
 model {
-
+real lp  = 0;
 	// Linear system
 	//Restricted priors on beta1_z[r], and inflection (were originally n(0,2)), preventing larger generated values
 	//As these dramatically increase log_y_hat - which causes problems with neg_binomial_2_log / neg_binomial_2_log_rng
@@ -230,10 +230,11 @@ model {
 	
 
 	// Likelihood - fiting 
-	if(prior_only == 0) for(t in 1:T) y[t] ~ neg_binomial_2(to_vector(multiplier[t]).*to_vector(exp(log_y_hat[t])), 1 ./ exp(phi[t]));
-	if(prior_only == 0)  int_2D_to_vector(y) ~ neg_binomial_2(to_vector(multiplier).*exp(to_vector(log_y_hat)), 1 ./ exp(to_vector(phi)));
+	if(prior_only == 0) for(t in 1:T)  lp += neg_binomial_2_lpmf(y[t] | to_vector(multiplier[t]).*to_vector(exp(log_y_hat[t])), 1 ./ exp(phi[t]));
+	print(lp);
+	if(prior_only == 0)  print(neg_binomial_2_lpmf(int_2D_to_vector(y) | to_vector(multiplier).*exp(to_vector(log_y_hat)), 1 ./ exp(to_vector(phi))));
 	
-		target += sum(map_rect(
+	print( sum(map_rect(
 		lp_reduce_simple,
 		[0]', // global parameters
 		get_mu_sigma_vector_MPI(
@@ -243,7 +244,7 @@ model {
 		),
 		real_data,
 		get_int_MPI( int_2D_to_vector(y), shards)
-	));
+	)));
 
 }
 generated quantities{
