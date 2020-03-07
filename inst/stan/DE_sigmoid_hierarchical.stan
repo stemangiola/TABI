@@ -235,11 +235,11 @@ real lp  = 0;
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 	
-	// Likelihood - fiting 
-	if(prior_only == 0) for(t in 1:T)  lp += neg_binomial_2_lpmf(y[t] | to_vector(multiplier[t]).*to_vector(exp(log_y_hat[t])), 1 ./ exp(phi[t]));
-	print(lp);
-	if(prior_only == 0)  print(neg_binomial_2_lpmf(int_2D_to_1D(y) | to_vector(multiplier).*exp(to_vector(log_y_hat)), 1 ./ exp(to_vector(phi))));
-	
+	// Likelihood - fitting
+	// if(prior_only == 0) for(t in 1:T)  lp += neg_binomial_2_lpmf(y[t] | to_vector(multiplier[t]).*to_vector(exp(log_y_hat[t])), 1 ./ exp(phi[t]));
+	// print(lp);
+	// if(prior_only == 0)  print(neg_binomial_2_lpmf(int_2D_to_1D(y) | to_vector(multiplier).*exp(to_vector(log_y_hat)), 1 ./ exp(to_vector(phi))));
+
 	target += sum(map_rect(
 		lp_reduce_simple,
 		[0]', // global parameters
@@ -258,8 +258,6 @@ real lp  = 0;
 	//   1 ./ exp(to_vector(phi)))
 	// );
 	
-	
-
 }
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
