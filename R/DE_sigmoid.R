@@ -55,6 +55,7 @@ sigmoid_link = function(
 	slab_df = prior$slab_df
 	slab_scale = prior$scale_DE
 	
+	shards = 1
 	browser()
 	# Run model
 	fit =

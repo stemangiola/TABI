@@ -173,7 +173,7 @@ TABI_glm = function(
 		input = list(
 			X = X,
 			y = y,
-			tidybulk_table = counts_norm
+			.data = .data
 		),
 
 		# Return the outcome of the model

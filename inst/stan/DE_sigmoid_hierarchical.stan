@@ -97,7 +97,7 @@ functions{
 
 	int[] int_2D_to_vector(int[,] elems);
   int[] int_2D_to_vector(int[,] elems) {
-    int num_elems = size(elems[,1]);
+    int num_elems = size(elems[1]);
 
     if (num_elems == 1) return(elems[,1]);
 
