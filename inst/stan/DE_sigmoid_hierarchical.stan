@@ -95,8 +95,8 @@ functions{
   	return i3;
   }
 
-	int[] int_2D_to_vector(int[,] elems);
-  int[] int_2D_to_vector(int[,] elems) {
+	int[] int_2D_to_1D(int[,] elems);
+  int[] int_2D_to_1D(int[,] elems) {
     int num_elems = size(elems[1]);
 
     if (num_elems == 1) return(elems[,1]);
@@ -104,7 +104,7 @@ functions{
     if (num_elems == 2) return(append_int(elems[,1], elems[,2]));
 
     // else
- 	  return(append_int(elems[,1],  int_2D_to_vector(elems[,2:num_elems]) ));
+ 	  return(append_int(elems[,1],  int_2D_to_1D(elems[,2:num_elems]) ));
   }
   
 	int[,] get_int_MPI(int[] v, int shards){
@@ -124,6 +124,19 @@ functions{
   	return v_MPI;
   }
 
+//   real neg_binomial_2_MPI_lpmf(int[] y, vector mus, vector sigmas, int shards){
+//     real real_data[shards,1];
+//     	
+//     return(
+//       sum(map_rect(
+// 	    	lp_reduce_simple,
+// 		    [0]', // global parameters
+//     		get_mu_sigma_vector_MPI(mus,	sigmas,	shards),
+//     		real_data,
+//     		get_int_MPI( y, shards)
+//     	))
+//     );
+//   }
 
 }
 data {
@@ -152,6 +165,7 @@ transformed data{
 	real < lower =0 > aux1_global = 2;
 	real < lower =0 > aux2_global = 1;
 	real < lower =0 > caux = 1;
+	
 	real real_data[shards,1];
 
 }
@@ -210,14 +224,7 @@ real lp  = 0;
 	for(r in 1:R_1) beta1_z[r] ~ normal (0,1);
 	
 	inflection ~ normal(0,1);
-	
 	y_cross_raw ~ normal(0,1); 
-	
-	//gamma_log(explog_y_cross_prior[1]) * inv(exp(log_y_cross_prior[2])), inv(exp(log_y_cross_prior[2])) );
-	//log_y_cross_prior ~ normal(0,5);
-
-	// normalization ~ normal(0,1);
-	// sum(normalization) ~ normal(0, 0.001*T);
 	
 	//Vertical Translation
 	A ~ normal(0,2);
@@ -228,13 +235,12 @@ real lp  = 0;
 	// Non sparse sigma
 	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 	
-
 	// Likelihood - fiting 
 	if(prior_only == 0) for(t in 1:T)  lp += neg_binomial_2_lpmf(y[t] | to_vector(multiplier[t]).*to_vector(exp(log_y_hat[t])), 1 ./ exp(phi[t]));
 	print(lp);
-	if(prior_only == 0)  print(neg_binomial_2_lpmf(int_2D_to_vector(y) | to_vector(multiplier).*exp(to_vector(log_y_hat)), 1 ./ exp(to_vector(phi))));
+	if(prior_only == 0)  print(neg_binomial_2_lpmf(int_2D_to_1D(y) | to_vector(multiplier).*exp(to_vector(log_y_hat)), 1 ./ exp(to_vector(phi))));
 	
-	print( sum(map_rect(
+	target += sum(map_rect(
 		lp_reduce_simple,
 		[0]', // global parameters
 		get_mu_sigma_vector_MPI(
@@ -243,8 +249,16 @@ real lp  = 0;
 			shards
 		),
 		real_data,
-		get_int_MPI( int_2D_to_vector(y), shards)
-	)));
+		get_int_MPI( int_2D_to_1D(y), shards)
+	));
+	
+	// target += neg_binomial_2_MPI_lpmf(
+	//   int_2D_to_1D(y) | 
+	//   to_vector(multiplier).*exp(to_vector(log_y_hat)),
+	//   1 ./ exp(to_vector(phi)))
+	// );
+	
+	
 
 }
 generated quantities{
