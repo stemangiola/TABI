@@ -121,6 +121,8 @@ TABI_glm = function(
   shards = 1
 ){
 
+  Sys.setenv("STAN_NUM_THREADS" = shards)
+  
 	# Set prior
 	prior = list(
 		prop_DE =prop_DE,
