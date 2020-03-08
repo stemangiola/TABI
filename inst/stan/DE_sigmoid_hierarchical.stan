@@ -8,7 +8,7 @@ functions{
     return to_row_vector(A + ((y_cross) .*  exp(  log1p_exp(-to_vector(neg_eta_beta_1)) - log1p_exp(- to_vector(y_lin)) )));
   }
   
-  real gla_eq(real x, real inflection, real slope, real y_cross, real A) {
+  real gla_eq(row_vector x, real inflection, vector slope, real y_cross, real A) {
 
   return(
     
@@ -16,8 +16,8 @@ functions{
       (
         (y_cross) * 
         exp(   
-          log1p_exp(inflection * slope) -
-          log1p_exp(   -x * slope + inflection * slope  ) 
+          log1p_exp(inflection * slope[1]) -
+          log1p_exp(   -( x * slope ) + inflection * slope[1]  ) 
           
         )
       ) 
@@ -194,42 +194,26 @@ parameters {
 	
 	vector<lower=0>[G] y_cross_raw; 
 	
-	vector[G] beta1_z[R_1]; //Vector of slopes 
-	
-	//vector[T] normalization;
-
-  // Overdispersion
-	real od;
+	//Vector of slopes 
+	matrix[R_1,G] beta; 
 	
 	//Vertical Translatioon
 	vector[G] A;
-	
-	// Non sparse sigma
-	vector<lower=0>[R_1-1] non_sparse_sigma;
+
+  // Overdispersion
+	real od;
 
 }
 transformed parameters {
 
 
-	matrix[R_1+1, G] beta; //matrix of coefficents
 	matrix[T, G] log_y_hat;  //log of the mean of y
 	matrix[T,G] phi; //log of the precision paramter - i.e dispersion in neg binomial is 1/exp(phi)
   vector<lower=0>[G] y_cross = y_cross_raw; //Restricted/defined y_cross to prevent problems with alterating signs in y_0 and A giving same result
   //hence preventing cases of multiple solutions
   
-	// Building matrix factors of interest
-  beta[2] = to_row_vector(beta1_z[1]);
-	if(R_1 > 1)	for(r in 2:R_1) beta[r+1] = to_row_vector( beta1_z[r] * non_sparse_sigma[r-1]);
-
-	// Eta*beta 
-	beta[1] = to_row_vector(-inflection .* beta[2]);
-
 	// Calculation of generalised logit - fitting in log space (i.e. log of the means follows gla eq)
-	for(t in 1:T) for(g in 1:G) log_y_hat[t,g] = gla_eq(X[t,2], inflection[g], beta1_z[1,g], y_cross[g], A[g]);
-	
-	#for(t in 1:T) log_y_hat[t] = gla_eq_2(X[t] * beta + beta[1], beta[1], y_cross, A);
-	
-	//old eq for(t in 1:T) log_y_hat[t] = gla_eq_2(X[t] * beta, beta[1], y_cross, A);
+	for(t in 1:T) for(g in 1:G) log_y_hat[t,g] = gla_eq(X[t,2:(R_1+1)], inflection[g], beta[,g], y_cross[g], A[g]);
 	
 	//Calculation of Overdispersion 
 	for(t in 1:T) phi[t] = -0.3186 * log_y_hat[t] + od;
@@ -241,7 +225,7 @@ real lp  = 0;
 	// Linear system
 	//Restricted priors on beta1_z[r], and inflection (were originally n(0,2)), preventing larger generated values
 	//As these dramatically increase log_y_hat - which causes problems with neg_binomial_2_log / neg_binomial_2_log_rng
-	for(r in 1:R_1) beta1_z[r] ~ normal (0,2.5);
+	for(r in 1:R_1) beta[r] ~ normal (0,2.5);
 	
 	inflection ~ normal(0,1);
 	y_cross_raw ~ normal(0,1); 
@@ -251,9 +235,6 @@ real lp  = 0;
 	
 	//overdispersion 
 	od ~ normal(0,1);
-
-	// Non sparse sigma
-	if(R_1 > 1) non_sparse_sigma ~ normal(0, 1);
 	
 	// Likelihood - fitting
 	// if(prior_only == 0) for(t in 1:T)  lp += neg_binomial_2_lpmf(y[t] | to_vector(multiplier[t]).*to_vector(exp(log_y_hat[t])), 1 ./ exp(phi[t]));
