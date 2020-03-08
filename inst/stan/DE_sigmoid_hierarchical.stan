@@ -5,7 +5,25 @@ functions{
     //y_lin is linear equation in gla_eq (eta*beta - X*beta),
     //neg_eta_beta_1 is -eta*beta_1, 
     //y_cross is y_0 
-    return to_row_vector(A + (y_cross -A) .*  exp(  log1p_exp(-to_vector(neg_eta_beta_1)) - log1p_exp(- to_vector(y_lin)) ));
+    return to_row_vector(A + ((y_cross) .*  exp(  log1p_exp(-to_vector(neg_eta_beta_1)) - log1p_exp(- to_vector(y_lin)) )));
+  }
+  
+  real gla_eq(real x, real inflection, real slope, real y_cross, real A) {
+
+  return(
+    
+       A + 
+      (
+        (y_cross + A) * 
+        exp(   
+          log1p_exp(inflection * slope) -
+          log1p_exp(( -(x * slope) + inflection * slope ) ) 
+          
+        )
+      ) 
+    
+  );
+    
   }
   
   int[] get_elements_per_shard(int lenth_v, int shards){
@@ -196,7 +214,7 @@ transformed parameters {
 	matrix[R_1+1, G] beta; //matrix of coefficents
 	matrix[T, G] log_y_hat;  //log of the mean of y
 	matrix[T,G] phi; //log of the precision paramter - i.e dispersion in neg binomial is 1/exp(phi)
-  vector[G] y_cross = y_cross_raw + A; //Restricted/defined y_cross to prevent problems with alterating signs in y_0 and A giving same result
+  vector[G] y_cross = y_cross_raw; //Restricted/defined y_cross to prevent problems with alterating signs in y_0 and A giving same result
   //hence preventing cases of multiple solutions
   
 	// Building matrix factors of interest
@@ -207,7 +225,9 @@ transformed parameters {
 	beta[1] = to_row_vector(-inflection .* beta[2]);
 
 	// Calculation of generalised logit - fitting in log space (i.e. log of the means follows gla eq)
-	for(t in 1:T) log_y_hat[t] = gla_eq_2(X[t] * beta + beta[1], beta[1], y_cross, A);
+	for(t in 1:T) for(g in 1:G) log_y_hat[t,g] = gla_eq(X[t,2], inflection[g], beta1_z[1,g], y_cross[g], A[g]);
+	
+	#for(t in 1:T) log_y_hat[t] = gla_eq_2(X[t] * beta + beta[1], beta[1], y_cross, A);
 	
 	//old eq for(t in 1:T) log_y_hat[t] = gla_eq_2(X[t] * beta, beta[1], y_cross, A);
 	
@@ -227,7 +247,7 @@ real lp  = 0;
 	y_cross_raw ~ normal(0,1); 
 	
 	//Vertical Translation
-	A ~ normal(0,2);
+	//A ~ normal(0,2);
 	
 	//overdispersion 
 	od ~ normal(0,1);
