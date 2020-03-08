@@ -14,10 +14,10 @@ functions{
     
        A + 
       (
-        (y_cross + A) * 
+        (y_cross) * 
         exp(   
           log1p_exp(inflection * slope) -
-          log1p_exp(( -(x * slope) + inflection * slope ) ) 
+          log1p_exp(   -x * slope + inflection * slope  ) 
           
         )
       ) 
@@ -214,7 +214,7 @@ transformed parameters {
 	matrix[R_1+1, G] beta; //matrix of coefficents
 	matrix[T, G] log_y_hat;  //log of the mean of y
 	matrix[T,G] phi; //log of the precision paramter - i.e dispersion in neg binomial is 1/exp(phi)
-  vector[G] y_cross = y_cross_raw; //Restricted/defined y_cross to prevent problems with alterating signs in y_0 and A giving same result
+  vector<lower=0>[G] y_cross = y_cross_raw; //Restricted/defined y_cross to prevent problems with alterating signs in y_0 and A giving same result
   //hence preventing cases of multiple solutions
   
 	// Building matrix factors of interest
@@ -241,7 +241,7 @@ real lp  = 0;
 	// Linear system
 	//Restricted priors on beta1_z[r], and inflection (were originally n(0,2)), preventing larger generated values
 	//As these dramatically increase log_y_hat - which causes problems with neg_binomial_2_log / neg_binomial_2_log_rng
-	for(r in 1:R_1) beta1_z[r] ~ normal (0,1);
+	for(r in 1:R_1) beta1_z[r] ~ normal (0,2.5);
 	
 	inflection ~ normal(0,1);
 	y_cross_raw ~ normal(0,1); 
