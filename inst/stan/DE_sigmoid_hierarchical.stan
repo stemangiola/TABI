@@ -201,7 +201,7 @@ parameters {
 	vector[G] A;
 
   // Overdispersion
-	real od;
+	vector[G] od;
 
 }
 transformed parameters {
@@ -216,7 +216,7 @@ transformed parameters {
 	for(t in 1:T) for(g in 1:G) log_y_hat[t,g] = gla_eq(X[t,2:(R_1+1)], inflection[g], beta[,g], y_cross[g], A[g]);
 	
 	//Calculation of Overdispersion 
-	for(t in 1:T) phi[t] = -0.3186 * log_y_hat[t] + od;
+	for(g in 1:G) phi[,g] = -0.3186 * log_y_hat[,g] + od[g];
 
 	
 }
