@@ -89,6 +89,7 @@ stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
 TABI_glm = function(
 	formula,
 	data,
+	multiplier,
 	link = "sigmoid",
 	prop_DE =0.05,
 	scale_DE = 5,
@@ -129,6 +130,8 @@ TABI_glm = function(
 		apply(2, as.integer) %>%
 		as_tibble() %>%
 		setNames(cn)
+	
+	
 
 	# Return
 	c(
@@ -136,7 +139,8 @@ TABI_glm = function(
 		# Return the inputs to the model
 		input = list(
 			X = X,
-			y = y
+			y = y,
+			multiplier = multiplier
 		),
 
 		# Return the outcome of the model
@@ -144,7 +148,8 @@ TABI_glm = function(
 			link,
 			"sigmoid" =
 				sigmoid_link(
-					X, y,
+					X, y, 
+					multiplier, 
 					prior,
 					iter,
 					warmup,
