@@ -8,9 +8,35 @@ using namespace Rcpp;
 
 
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_Isobel_clean_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_fixed_log_space_fit_vert_trans_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_log_space_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_test_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_log_space_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_log_space_od_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_1_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4test_names_mod();
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_Isobel_clean_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_Isobel_clean_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_fixed_log_space_fit_vert_trans_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_fixed_log_space_fit_vert_trans_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_log_space_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_log_space_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_test_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_test_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_log_space_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_log_space_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_log_space_od_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_log_space_od_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_1_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_1_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod, 0},
+    {"_rcpp_module_boot_stan_fit4test_names_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4test_names_mod, 0},
     {NULL, NULL, 0}
 };
 
