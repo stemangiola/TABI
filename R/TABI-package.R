@@ -155,13 +155,13 @@ TABI_glm = function(
 	# tt Object to run through tidyBulk
 	multiplier =
 	  .data %>%
-	  tidybulk( !!.sample, !!.transcript, !!.abundance) %>%
+	  tidybulk::tidybulk( !!.sample, !!.transcript, !!.abundance) %>%
 	   tidybulk::aggregate_duplicates() %>%
 	  tidybulk::scale_abundance(action="get") %>%
-	  arrange(sample) %>%
+	  arrange(!!.sample) %>%
 	  select(multiplier)
 	
-	# Create tibble of normalised expression data
+	# Create tibble of expression data
 	# Each column is a different gene
 	y = 
 	  .data %>%
