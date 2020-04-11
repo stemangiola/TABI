@@ -19,7 +19,11 @@ RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_1_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_no_beta_prior_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_scale_test_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_try_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_try_1_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4test_names_mod();
 
 static const R_CallMethodDef CallEntries[] = {
@@ -35,7 +39,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_mod, 0},
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_1_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_vert_trans_corrected_1_mod, 0},
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_no_beta_prior_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_no_beta_prior_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_scale_test_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_scale_test_mod, 0},
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_try_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_try_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_try_1_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_try_1_mod, 0},
     {"_rcpp_module_boot_stan_fit4test_names_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4test_names_mod, 0},
     {NULL, NULL, 0}
 };
