@@ -58,7 +58,11 @@ sigmoid_link = function(
 	# Run model
 	fit =
 		sampling(
+<<<<<<< HEAD
 		  model,
+=======
+		  stanmodels$DE_sigmoid_fixed_log_space_fit_vert_trans, #model
+>>>>>>> hierarchy_reintro
 			iter =   iter,
 			warmup = warmup,
 			chains = 4,
