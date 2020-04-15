@@ -16,6 +16,24 @@ TABI_TP <-
     ),iter = 2000, warmup = 1000,
   )
 
+# Censoring
+TABI_TP <- 
+  TABI::test_df %>%
+  mutate(alive = sample(0:1, size = n(), replace = T)) %>%
+  mutate(months = rgamma(n(), shape = 0.884, rate = 0.884 * exp(-4.72))) %>%
+  mutate(count = rnorm(n(), 50, 10) %>% as.integer) %>%
+  TABI_glm(
+    ~ censored(months, alive),
+    sample, transcript, count,
+    model = rstan::stan_model("inst/stan/DE_sigmoid_hierarchical.stan"),
+    control=list(
+      adapt_delta=0.9,
+      stepsize = 0.01,
+      max_treedepth =10
+    ),iter = 2000, warmup = 1000,
+  )
+mcmc_parcoord(as.array(TABI_TP$fit, pars = c("beta", "inflection", "y_cross_raw", "od", "A", "unseen")), np = nuts_params(TABI_TP$fit)) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
 gglines = 
   TABI_TP$fit %>%
   tidybayes::spread_draws(inflection[G], y_cross_raw[G], beta1_z[G], A[G]) %>%

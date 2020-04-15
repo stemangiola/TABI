@@ -165,24 +165,29 @@ data {
 	int<lower=0> R_1;                   // All Covariates (Intercept, Chosen Covariate 1 ... ) 
 	int<lower = 0> y[T, G];             // RNA-seq counts
 	matrix[T,R_1+1] X;                 // Design Matrix
-	int exposure[T];                 // How many reads have been sequenced for each sample
+	//int exposure[T];                 // How many reads have been sequenced for each sample
 	matrix<lower=0>[T,G] multiplier;           // Scale factor 
 
-	// Horseshoe (for multiple genes)
-	real < lower =0 > par_ratio ; // proportion of 0s
-	real < lower =1 > nu_global ; // degrees of freedom for the half -t prior
-	real < lower =1 > nu_local ; // degrees of freedom for the half - t priors
-	real < lower =0 > slab_scale ; // slab scale for the regularized horseshoe
-	real < lower =0 > slab_df; // slab degrees of freedom for the regularized
+	// // Horseshoe (for multiple genes)
+	// real < lower =0 > par_ratio ; // proportion of 0s
+	// real < lower =1 > nu_global ; // degrees of freedom for the half -t prior
+	// real < lower =1 > nu_local ; // degrees of freedom for the half - t priors
+	// real < lower =0 > slab_scale ; // slab scale for the regularized horseshoe
+	// real < lower =0 > slab_df; // slab degrees of freedom for the regularized
 	
-	int shards;
+	int<lower=1> shards;
+	
+	// Censoring
+	int how_many_cens;
+	int which_cens[how_many_cens];
+	int which_not_cens[T-how_many_cens];
 
 }
 transformed data{
-	real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
-	real < lower =0 > aux1_global = 2;
-	real < lower =0 > aux2_global = 1;
-	real < lower =0 > caux = 1;
+	// real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
+	// real < lower =0 > aux1_global = 2;
+	// real < lower =0 > aux2_global = 1;
+	// real < lower =0 > caux = 1;
 	
 	real real_data[shards,1];
 
@@ -202,6 +207,11 @@ parameters {
 
   // Overdispersion
 	vector[G] od;
+	
+	// Censoring
+	vector<lower=0>[how_many_cens] unseen;
+	real<lower=0> prior_unseen_alpha[how_many_cens > 0];
+	real prior_unseen_beta[how_many_cens > 0];
 
 }
 transformed parameters {
@@ -212,20 +222,24 @@ transformed parameters {
   vector<lower=0>[G] y_cross = y_cross_raw; //Restricted/defined y_cross to prevent problems with alterating signs in y_0 and A giving same result
   //hence preventing cases of multiple solutions
   
+  matrix[T,R_1+1] X_ = X;
+  
 	// Calculation of generalised logit - fitting in log space (i.e. log of the means follows gla eq)
 	for(t in 1:T) for(g in 1:G) log_y_hat[t,g] = gla_eq(X[t,2:(R_1+1)], inflection[g], beta[,g], y_cross[g], A[g]);
 	
 	//Calculation of Overdispersion 
 	for(g in 1:G) phi[,g] = -0.3186 * log_y_hat[,g] + od[g];
 
-	
+  // Censoring
+	if(how_many_cens > 0) X_[which_cens,2] = X_[which_cens,2] + unseen;
+
 }
 model {
 real lp  = 0;
 	// Linear system
 	//Restricted priors on beta1_z[r], and inflection (were originally n(0,2)), preventing larger generated values
 	//As these dramatically increase log_y_hat - which causes problems with neg_binomial_2_log / neg_binomial_2_log_rng
-	for(r in 1:R_1) beta[r] ~ normal (0,2.5);
+	for(r in 1:R_1) beta[r] ~ normal (0,1.5);
 	
 	inflection ~ normal(0,1);
 	y_cross_raw ~ normal(0,1); 
@@ -241,23 +255,38 @@ real lp  = 0;
 	// print(lp);
 	// if(prior_only == 0)  print(neg_binomial_2_lpmf(int_2D_to_1D(y) | to_vector(multiplier).*exp(to_vector(log_y_hat)), 1 ./ exp(to_vector(phi))));
 
-	target += sum(map_rect(
-		lp_reduce_simple,
-		[0]', // global parameters
-		get_mu_sigma_vector_MPI(
-			to_vector(multiplier).*exp(to_vector(log_y_hat)),
-			1 ./ exp(to_vector(phi)),
-			shards
-		),
-		real_data,
-		get_int_MPI( int_2D_to_1D(y), shards)
-	));
+  if(prior_only == 0) 
+  	target += sum(map_rect(
+  		lp_reduce_simple,
+  		[0]', // global parameters
+      get_mu_sigma_vector_MPI(to_vector(multiplier).*exp(to_vector(log_y_hat)),	1.0 ./ exp(to_vector(phi)),	shards),
+  		real_data,
+  		get_int_MPI( int_2D_to_1D(y), shards)
+  	));
 	
 	// target += neg_binomial_2_MPI_lpmf(
 	//   int_2D_to_1D(y) | 
 	//   to_vector(multiplier).*exp(to_vector(log_y_hat)),
 	//   1 ./ exp(to_vector(phi)))
 	// );
+	
+		// Censoring
+	if(prior_only == 0 && how_many_cens > 0){
+		
+		real mu = prior_unseen_alpha[1] * exp(-prior_unseen_beta[1]);
+		
+		// unseen
+		X_[which_cens,2] ~ gamma_lpdf( prior_unseen_alpha[1], mu);
+
+		// Priors
+		target += gamma_lpdf(X[which_not_cens,2] | prior_unseen_alpha[1], mu);
+	 	target += gamma_lccdf(	X[which_cens,2] | prior_unseen_alpha[1], mu);
+	 	
+	 	// Hyperprior. From TCGA dead patients
+	 	prior_unseen_alpha ~ normal(1.28, 0.0419);
+		prior_unseen_beta ~ normal(-0.717, 0.0225);
+
+	}
 	
 }
 generated quantities{

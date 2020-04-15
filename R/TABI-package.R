@@ -45,37 +45,6 @@
 #'
 NULL
 
-#' Formula parser
-#'
-#' @param fm A formula
-#' @return A character vector
-#'
-#'
-parse_formula <- function(fm) {
-	if(attr(terms(fm), "response") == 1) stop("The formula must be of the kind \"~ covariates\" ")
-	else as.character(attr(terms(fm), "variables"))[-1]
-}
-
-#' Scale design matrix
-#'
-#' @param df A tibble
-#' @return A tibble
-#'
-#'
-scale_design = function(df, formula){
-	df %>%
-		setNames(c("sample_idx", "(Intercept)", parse_formula(formula))) %>%
-		gather(cov, value, -sample_idx) %>%
-		group_by(cov) %>%
-		mutate( value = ifelse( !grepl("Intercept", cov) & length(union(c(0,1), value)) != 2, scale(value), value )) %>%
-		ungroup() %>%
-		spread(cov, value) %>%
-		arrange(as.integer(sample_idx)) %>%
-		select(`(Intercept)`, one_of(parse_formula(formula)))
-}
-
-#' make a function to combine the results
-stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
 
 
 #' Perform generalised linear model on RNA seq data
@@ -100,7 +69,7 @@ stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
 #'
 TABI_glm = function(
   .data,
-  formula,
+  .formula,
 	.sample, # Sample ID column
 	.transcript, # Transcript name/ID column
 	.abundance, # Raw expression read column
@@ -120,9 +89,9 @@ TABI_glm = function(
 	prior_only = 0,
   shards = 1
 ){
-
+ 
   Sys.setenv("STAN_NUM_THREADS" = shards)
-  
+   
 	# Set prior
 	prior = list(
 		prop_DE =prop_DE,
@@ -136,23 +105,38 @@ TABI_glm = function(
 	.transcript = dplyr::enquo(.transcript)
 	.abundance = dplyr::enquo(.abundance)
 	
+	# Covariate column
+	cov_columns =
+	  parse_formula(.formula)$covariates %>%
+	  map_chr(~ .x %>% gsub("censored\\(|\\)| ", "", .) %>% str_split("\\,") %>% `[[` (1) %>% `[` (1)) %>%
+	  ifelse_pipe((.) %>% is.null, ~ c())
+	
+	# Censoring column
+	.cens_label_column = parse_formula(.formula)$covariates %>% grep("censored(", ., fixed = T, value = T)  %>% gsub("censored\\(|\\)| ", "", .) %>% str_split("\\,") %>% ifelse_pipe(length(.)>0, ~.x %>% `[[` (1) %>% `[` (-1), ~NULL)
+	.cens_value_column = parse_formula(.formula)$covariates %>% grep("censored(", ., fixed = T, value = T)  %>% gsub("censored\\(|\\)| ", "", .) %>% str_split("\\,") %>% ifelse_pipe(length(.)>0, ~.x %>% `[[` (1) %>% `[` (1), ~NULL)
+	
+	if(length(.cens_label_column) == 1) {
+	  cens = .data %>% select(sample, .cens_label_column) %>% distinct %>% arrange(sample) %>% pull(2)
+	  
+	  sd_survival_months = 29.3
+	  
+	  .data = .data %>% mutate(!!.cens_value_column := !!as.symbol(.cens_value_column) / sd_survival_months)
+	  my_formula = as.formula( paste("~",paste(cov_columns, collapse = "+")))
+	}
+	else{
+	  cens = NULL
+	  my_formula = .formula
+	} 
 	
 	# Create design matrix
-	
-	# Create tibble of covariate .data 
-	covariate_data = 
-	  .data %>%
-	  select(one_of(parse_formula(formula)), 
-	         !!.sample) %>%
-	  distinct()
-	
 	X =
-	  model.matrix(object = formula, 
-	               data = covariate_data) %>%
-	  as_tibble(rownames="sample_idx") %>%
-	  scale_design(formula)
+	  model.matrix(object = my_formula, 
+	               data = .data %>%  select(one_of(cov_columns), !!.sample) %>% distinct()) %>%
+	  as_tibble(rownames="sample_idx") 
+	#%>%
+	#  scale_design(.formula)
 
-	# tt Object to run through tidyBulk
+	# tt Object to run through tidybulk
 	multiplier =
 	  .data %>%
 	  tidybulk::tidybulk( !!.sample, !!.transcript, !!.abundance) %>%
@@ -191,7 +175,8 @@ TABI_glm = function(
 					model = model,
 					control = control,
 					prior_only = prior_only,
-					shards = shards
+					shards = shards,
+					cens
 				)
 		)
 	)

@@ -34,7 +34,8 @@ sigmoid_link = function(
 		max_treedepth =10
 	),
 	prior_only = 0,
-	shards = 1
+	shards = 1,
+	cens = NULL
 ){
 
 	#------------------------------#
@@ -46,15 +47,21 @@ sigmoid_link = function(
 	T = nrow(y)
 	R_1 = ncol(X)-1
 
-	# Exposure terms
-	exposure = y %>% rowSums()
+	# # Exposure terms
+	# exposure = y %>% rowSums()
 
-	# Horseshoe
-	nu_local = 1
-	nu_global = prior$nu_global
-	par_ratio = prior$prop_DE
-	slab_df = prior$slab_df
-	slab_scale = prior$scale_DE
+	# # Horseshoe
+	# nu_local = 1
+	# nu_global = prior$nu_global
+	# par_ratio = prior$prop_DE
+	# slab_df = prior$slab_df
+	# slab_scale = prior$scale_DE
+	
+	# Censoring
+	if(cens %>% is.null) cens =  c()
+	which_cens = which(cens == 1)
+	which_not_cens = which(cens == 0)
+	how_many_cens = length(which_cens)
 
 	# Run model
 	fit =
