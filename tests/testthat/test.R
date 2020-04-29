@@ -3,8 +3,8 @@ library(TABI)
 library(tidybulk)
 
 TABI_TP <- 
-  TABI::test_df %>%
-  mutate(count = rnorm(n(), 50, 10) %>% as.integer) %>%
+  test_df %>%
+  mutate(count = rnbinom(n(), mu=50, size = 30) %>% as.integer) %>%
   TABI_glm(
     ~ CAPRA_S,
     sample, transcript, count,
@@ -13,8 +13,12 @@ TABI_TP <-
       adapt_delta=0.9,
       stepsize = 0.01,
       max_treedepth =10
-    ),iter = 2000, warmup = 1000,
+    ),
+    iter = 2000,
+    warmup = 1000,
   )
+
+TABI_TP$fit %>% pairs(pars=c("beta", "inflection", "A", "od", "y_cross"))
 
 gglines = 
   TABI_TP$fit %>%
