@@ -26,6 +26,24 @@ functions{
     
   }
   
+  real gla_eq_3(row_vector x, real inflection, vector slope, real y_cross, real A_y) {
+
+  return(
+    
+       A_y + 
+      (
+        (A_y/y_cross) * 
+        exp(   
+          log1p_exp(inflection * slope[1]) -
+          log1p_exp(   -( x * slope ) + inflection * slope[1]  ) 
+          
+        )
+      ) 
+    
+  );
+    
+  }
+  
   int[] get_elements_per_shard(int lenth_v, int shards){
 
 	// Returned integer(max_size, last_element_size)
@@ -192,7 +210,7 @@ parameters {
 	
 	row_vector[G] inflection; //Value of the inflection point on the x axis
 	
-	vector<lower=0>[G] y_cross_raw; 
+	vector<lower=0>[G] y_cross; 
 	
 	//Vector of slopes 
 	matrix[R_1,G] beta; 
@@ -209,7 +227,6 @@ transformed parameters {
 
 	matrix[T, G] log_y_hat;  //log of the mean of y
 	matrix[T,G] phi; //log of the precision paramter - i.e dispersion in neg binomial is 1/exp(phi)
-  vector<lower=0>[G] y_cross = y_cross_raw; //Restricted/defined y_cross to prevent problems with alterating signs in y_0 and A giving same result
   //hence preventing cases of multiple solutions
   
 	// Calculation of generalised logit - fitting in log space (i.e. log of the means follows gla eq)
@@ -228,7 +245,7 @@ real lp  = 0;
 	for(r in 1:R_1) beta[r] ~ normal (0,2.5);
 	
 	inflection ~ normal(0,1);
-	y_cross_raw ~ normal(0,1); 
+	y_cross ~ double_exponential(0,0.1); 
 	
 	//Vertical Translation
 	//A ~ normal(0,2);
