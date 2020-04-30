@@ -32,7 +32,7 @@ functions{
     
        A_y + 
       (
-        (A_y/y_cross) * 
+        (A_y*y_cross) * 
         exp(   
           log1p_exp(inflection * slope[1]) -
           log1p_exp(   -( x * slope ) + inflection * slope[1]  ) 
@@ -160,6 +160,32 @@ functions{
   	return v_MPI;
   }
 
+  	 vector horseshoe_get_tp(vector zb, vector[] local, real[] global, real scale_global, real c2) {
+  	    int K = rows(zb);
+  	    vector[K] lambda = local[1] .* sqrt(local[2]);
+  	    vector[K] lambda2 = square(lambda);
+  	    real tau = global[1] * sqrt(global[2]) * scale_global;
+  	    vector[K] lambda_tilde = sqrt(c2 * lambda2 ./ (c2 + tau^2 * lambda2));
+  	    return zb .* lambda_tilde * tau;
+  	  }
+  
+    real horseshoe_get_lp(vector zb, vector[] local, real df, real[] global, real df_global, real c2, real df_slab){
+  
+      // real<lower=0> hs_df; // == 1  // If divergencies increase this
+  	  // real<lower=0> hs_df_global; // == 1
+  	  // real<lower=0> hs_df_slab; // == 4 // df of the outliers
+  
+    	vector[6] lp;
+  
+    	lp[1] = normal_lpdf(zb | 0, 1);
+  	  lp[2] = normal_lpdf(local[1] | 0, 1) - 101 * log(0.5);
+  	  lp[3] = inv_gamma_lpdf(local[2] | 0.5 * df, 0.5 * df);
+  	  lp[4] = normal_lpdf(global[1] | 0, 1)  - 1 * log(0.5);
+  	  lp[5] = inv_gamma_lpdf(global[2] | 0.5 * df_global, 0.5 * df_global);
+  	  lp[6] = inv_gamma_lpdf(c2 | 0.5 * df_slab, 0.5 * df_slab);
+  
+  	  return(sum(lp));
+    }
 //   real neg_binomial_2_MPI_lpmf(int[] y, vector mus, vector sigmas, int shards){
 //     real real_data[shards,1];
 //     	
@@ -185,23 +211,18 @@ data {
 	matrix[T,R_1+1] X;                 // Design Matrix
 	int exposure[T];                 // How many reads have been sequenced for each sample
 	matrix<lower=0>[T,G] multiplier;           // Scale factor 
-
-	// Horseshoe (for multiple genes)
-	real < lower =0 > par_ratio ; // proportion of 0s
-	real < lower =1 > nu_global ; // degrees of freedom for the half -t prior
-	real < lower =1 > nu_local ; // degrees of freedom for the half - t priors
-	real < lower =0 > slab_scale ; // slab scale for the regularized horseshoe
-	real < lower =0 > slab_df; // slab degrees of freedom for the regularized
 	
 	int shards;
 
 }
 transformed data{
-	real < lower =0 > scale_global = par_ratio / sqrt(1.0 * T); // scale for the half -t prior for tau
-	real < lower =0 > aux1_global = 2;
-	real < lower =0 > aux2_global = 1;
-	real < lower =0 > caux = 1;
-	
+
+	/// Horseshoe tuning
+  real<lower=0> hs_df = 1; // == 1  // If divergencies increase this
+  real<lower=0, upper=1> par_ratio = 0.01; // real<lower=0> hs_scale_global; // from par ratio // 0.1 mean 1 outliers every 10 non outliers  !! KEY PARAMETER
+  real<lower=0> hs_scale_slab = 0.5; // == 2 // regularisation/scale of outliers                !! KEY PARAMETER
+
+  // MPI
 	real real_data[shards,1];
 
 }
@@ -210,7 +231,7 @@ parameters {
 	
 	row_vector[G] inflection; //Value of the inflection point on the x axis
 	
-	vector<lower=0>[G] y_cross; 
+	vector<lower=0>[G] y_cross_z; 
 	
 	//Vector of slopes 
 	matrix[R_1,G] beta; 
@@ -220,9 +241,17 @@ parameters {
 
   // Overdispersion
 	vector[G] od;
+	
+  // Horseshoe
+  vector<lower=0>[1] hs_local[2]; // local parameters for horseshoe prior
+  real<lower=0> hs_global[2]; // horseshoe shrinkage parameters
+  real<lower=0> hs_c2; // horseshoe shrinkage parameters
 
 }
 transformed parameters {
+  
+  // Horseshoe
+  vector[G] y_cross= horseshoe_get_tp(y_cross_z, hs_local, hs_global, par_ratio / sqrt(T), hs_scale_slab^2 * hs_c2);
 
 
 	matrix[T, G] log_y_hat;  //log of the mean of y
@@ -233,7 +262,10 @@ transformed parameters {
 	for(t in 1:T) for(g in 1:G) log_y_hat[t,g] = gla_eq(X[t,2:(R_1+1)], inflection[g], beta[,g], y_cross[g], A[g]);
 	
 	//Calculation of Overdispersion 
-	for(g in 1:G) phi[,g] = -0.3186 * log_y_hat[,g] + od[g];
+	//for(g in 1:G) phi[,g] = -0.3186 * log_y_hat[,g] + od[g];
+	for(g in 1:G) phi[,g] = 0 * log_y_hat[,g] + od[g];
+
+
 
 	
 }
@@ -245,7 +277,7 @@ real lp  = 0;
 	for(r in 1:R_1) beta[r] ~ normal (0,2.5);
 	
 	inflection ~ normal(0,1);
-	y_cross ~ double_exponential(0,0.1); 
+	//y_cross ~ double_exponential(0,0.01); 
 	
 	//Vertical Translation
 	//A ~ normal(0,2);
@@ -276,6 +308,8 @@ real lp  = 0;
 	//   1 ./ exp(to_vector(phi)))
 	// );
 	
+  // Horseshoe
+  target += horseshoe_get_lp(y_cross_z, hs_local, hs_df, hs_global, 1, hs_c2, 4);
 }
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
