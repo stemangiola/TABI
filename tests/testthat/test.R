@@ -31,6 +31,9 @@ test_that("test slope 0",{
     0.1 
   )
   
+  #TABI_TP$fit %>% pairs(pars=c("beta", "inflection", "A", "od", "y_cross"))
+  
+  
 })
 
 
