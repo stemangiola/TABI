@@ -18,7 +18,79 @@ TABI_TP <-
     warmup = 1000,
   )
 
-TABI_TP$fit %>% pairs(pars=c("beta", "inflection", "A", "od", "y_cross"))
+TABI_TP$fit %>% rstan::extract("beta") %$% beta %>% as.numeric %>% shapiro.test %>% broom::tidy() %>% pull(p.value) %>% `>` (0.1)
+
+
+TABI_slope_0 <- 
+  outlier_table_1 %>% 
+  as_tibble() %>% 
+  filter(Gene_number=="V666") %>%
+  mutate(sample=as.character(1:n())) %>%
+  mutate(value = value %>% as.integer) %>%
+  select(-multiplier) %>%
+  TABI_glm(
+    ~ CAPRA_S,
+    sample, Gene_number, value,
+    model = rstan::stan_model("inst/stan/DE_sigmoid_hierarchical.stan"),
+    control=list(
+      adapt_delta=0.9,
+      stepsize = 0.01,
+      max_treedepth =10
+    ),
+    iter = 2000,
+    warmup = 1000,
+  )
+
+
+
+bayesplot::mcmc_parcoord(
+  as.array(TABI_slope_0$fit, pars = c("beta", "inflection", "A", "od", "y_cross")),
+  np = bayesplot::nuts_params(TABI_slope_0$fit),
+  transform = function(x) {(x - mean(x)) / sd(x)}
+) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+plot(
+  test_df$CAPRA_S %>% scale,
+  rnbinom(nrow(test_df), mu =exp(sigmoid_4_param(
+    test_df$CAPRA_S %>% scale,
+    A = 2,
+    y_cross = 0.5,
+    slope = matrix(2, nrow = 1),
+    inflection= 1
+  )), size=30)
+)
+
+
+TABI_slope_2 <- 
+  test_df %>%
+  mutate(count =   rnbinom(nrow(test_df), mu =exp(sigmoid_4_param(
+    test_df$CAPRA_S %>% scale,
+    A = 2,
+    y_cross = 0.5,
+    slope = matrix(2, nrow = 1),
+    inflection= 1
+  )), size=30)) %>%
+  mutate(CAPRA_S =  CAPRA_S %>% scale) %>%
+  TABI_glm(
+    ~ CAPRA_S,
+    sample, transcript, count,
+    model = rstan::stan_model("inst/stan/DE_sigmoid_hierarchical.stan"),
+    control=list( adapt_delta=0.9,stepsize = 0.01,  max_treedepth =10 ),
+    iter = 2000,
+    warmup = 1000,
+  )
+
+
+bayesplot::mcmc_parcoord(
+  as.array(TABI_slope_0$fit, pars = c("beta", "inflection", "A", "od", "y_cross")),
+  np = bayesplot::nuts_params(TABI_slope_0$fit),
+  transform = function(x) {(x - mean(x)) / sd(x)}
+) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
 
 gglines = 
   TABI_TP$fit %>%
