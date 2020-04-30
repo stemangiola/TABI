@@ -285,28 +285,19 @@ real lp  = 0;
 	//overdispersion 
 	od ~ normal(0,1);
 	
-	// Likelihood - fitting
-	// if(prior_only == 0) for(t in 1:T)  lp += neg_binomial_2_lpmf(y[t] | to_vector(multiplier[t]).*to_vector(exp(log_y_hat[t])), 1 ./ exp(phi[t]));
-	// print(lp);
-	// if(prior_only == 0)  print(neg_binomial_2_lpmf(int_2D_to_1D(y) | to_vector(multiplier).*exp(to_vector(log_y_hat)), 1 ./ exp(to_vector(phi))));
-
+	
+  if(prior_only == 0)
 	target += sum(map_rect(
 		lp_reduce_simple,
 		[0]', // global parameters
 		get_mu_sigma_vector_MPI(
-			to_vector(multiplier).*exp(to_vector(log_y_hat)),
+			exp(to_vector(log_y_hat)), //to_vector(multiplier).*exp(to_vector(log_y_hat)),
 			1 ./ exp(to_vector(phi)),
 			shards
 		),
 		real_data,
 		get_int_MPI( int_2D_to_1D(y), shards)
 	));
-	
-	// target += neg_binomial_2_MPI_lpmf(
-	//   int_2D_to_1D(y) | 
-	//   to_vector(multiplier).*exp(to_vector(log_y_hat)),
-	//   1 ./ exp(to_vector(phi)))
-	// );
 	
   // Horseshoe
   target += horseshoe_get_lp(y_cross_z, hs_local, hs_df, hs_global, 1, hs_c2, 4);
