@@ -26,8 +26,7 @@ sigmoid_link = function(
 	prior,
 	iter,
 	warmup,
-	model = get_sigmoid_model(),
-	#rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_norm_log_space_fit_vert_trans.stan", auto_write = T),
+	model = stanmodels$DE_sigmoid_hierarchical,
 	control=list(
 		adapt_delta=0.8,
 		stepsize = 0.1,
@@ -49,12 +48,12 @@ sigmoid_link = function(
 	# Exposure terms
 	exposure = y %>% rowSums()
 
-	# Horseshoe
-	nu_local = 1
-	nu_global = prior$nu_global
-	par_ratio = prior$prop_DE
-	slab_df = prior$slab_df
-	slab_scale = prior$scale_DE
+	# # Horseshoe
+	# nu_local = 1
+	# nu_global = prior$nu_global
+	# par_ratio = prior$prop_DE
+	# slab_df = prior$slab_df
+	# slab_scale = prior$scale_DE
 
 	# Run model
 	fit =
