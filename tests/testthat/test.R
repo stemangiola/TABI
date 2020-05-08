@@ -19,15 +19,14 @@ test_that("test slope 0",{
     )
   
   
-  expect_gt(
+  expect_equal(
     TABI_TP$fit %>% 
       rstan::extract("beta") %$% 
       beta %>% 
       as.numeric %>%
-      shapiro.test %>%
-      broom::tidy() %>%
-      pull(p.value) , 
-    0.1 
+      {x = (.); (x > 0) %>% which %>% length %>% divide_by(length(x)) } , 
+    0.5 ,
+    tolerance=0.01 
   )
   
   # TABI_TP$fit %>% pairs(pars=c("beta", "inflection", "A", "od", "y_cross"))
