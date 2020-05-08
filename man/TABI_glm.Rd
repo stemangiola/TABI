@@ -4,16 +4,35 @@
 \alias{TABI_glm}
 \title{Perform generalised linear model on RNA seq data}
 \usage{
-TABI_glm(formula, data, link = "sigmoid", prior = list(prop_DE = 0.05,
-  scale_DE = 5, nu_global = 5, slab_df = 40), iter = 500,
-  warmup = round(iter/2), model = get_sigmoid_model(),
+TABI_glm(
+  .data,
+  formula,
+  .sample,
+  .transcript,
+  .abundance,
+  link = "sigmoid",
+  prop_DE = 0.05,
+  scale_DE = 5,
+  nu_global = 5,
+  slab_df = 40,
+  iter = 500,
+  warmup = round(iter/2),
+  model = stanmodels$DE_sigmoid_hierarchical,
   control = list(adapt_delta = 0.8, stepsize = 0.1, max_treedepth = 10),
-  prior_only = 0)
+  prior_only = 0,
+  shards = 1
+)
 }
 \arguments{
+\item{.data}{A tibble}
+
 \item{formula}{A formula}
 
-\item{data}{A tibble}
+\item{.sample}{A column name}
+
+\item{.transcript}{A column name}
+
+\item{.abundance}{A column name}
 
 \item{link}{A character string}
 }

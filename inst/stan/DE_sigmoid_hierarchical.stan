@@ -209,7 +209,6 @@ data {
 	int<lower=0> R_1;                   // All Covariates (Intercept, Chosen Covariate 1 ... ) 
 	int<lower = 0> y[T, G];             // RNA-seq counts
 	matrix[T,R_1+1] X;                 // Design Matrix
-	int exposure[T];                 // How many reads have been sequenced for each sample
 	matrix<lower=0>[T,G] multiplier;           // Scale factor 
 	
 	int shards;

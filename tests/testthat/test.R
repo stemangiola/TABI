@@ -1,14 +1,13 @@
-library(tidyverse)
-library(TABI)
-library(tidybulk)
-library(magrittr)
+# library(tidyverse)
+# library(TABI)
+# library(tidybulk)
+# library(magrittr)
 
-load("data/test_df.rda")
 
 test_that("test slope 0",{
   
   TABI_TP <- 
-    test_df %>%
+    TABI::test_df %>%
     mutate(count = rnbinom(n(), mu=50, size = 30) %>% as.integer) %>%
     TABI_glm(
       ~ CAPRA_S,
@@ -31,7 +30,7 @@ test_that("test slope 0",{
     0.1 
   )
   
-  #TABI_TP$fit %>% pairs(pars=c("beta", "inflection", "A", "od", "y_cross"))
+  # TABI_TP$fit %>% pairs(pars=c("beta", "inflection", "A", "od", "y_cross"))
   
   
 })
@@ -42,11 +41,11 @@ test_that("test slope 0",{
   
   
   TABI_TP <- 
-    test_df %>%
+    TABI::test_df %>%
     
     # Simulate with slope
-    mutate(count =   rnbinom(nrow(test_df), mu =exp(sigmoid_4_param(
-      test_df$CAPRA_S %>% scale,
+    mutate(count =   rnbinom(nrow(TABI::test_df), mu =exp(sigmoid_4_param(
+      TABI::test_df$CAPRA_S %>% scale,
       A = 2,
       y_cross = 0.5,
       slope = matrix(2, nrow = 1),

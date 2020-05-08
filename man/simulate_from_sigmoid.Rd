@@ -4,9 +4,14 @@
 \alias{simulate_from_sigmoid}
 \title{Simulate data}
 \usage{
-simulate_from_sigmoid(delta_magnitude = 5, n_genes = 100,
-  changing_genes = round(n_genes * 0.3), hkg = round(n_genes * 0.3),
-  n_samples = 13, precision_NB = 20)
+simulate_from_sigmoid(
+  delta_magnitude = 5,
+  n_genes = 100,
+  changing_genes = round(n_genes * 0.3),
+  hkg = round(n_genes * 0.3),
+  n_samples = 13,
+  precision_NB = 20
+)
 }
 \arguments{
 \item{delta_magnitude}{the magnitude of the slope}
