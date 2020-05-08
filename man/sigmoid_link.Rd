@@ -4,9 +4,18 @@
 \alias{sigmoid_link}
 \title{Perform generalised linear model on RNA seq data}
 \usage{
-sigmoid_link(X, y, prior, iter, warmup, model = get_sigmoid_model(),
+sigmoid_link(
+  X,
+  y,
+  multiplier,
+  prior,
+  iter,
+  warmup,
+  model = stanmodels$DE_sigmoid_hierarchical,
   control = list(adapt_delta = 0.8, stepsize = 0.1, max_treedepth = 10),
-  prior_only = 0)
+  prior_only = 0,
+  shards = 1
+)
 }
 \arguments{
 \item{X}{A design matrix}

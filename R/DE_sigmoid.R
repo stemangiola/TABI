@@ -45,16 +45,6 @@ sigmoid_link = function(
 	T = nrow(y)
 	R_1 = ncol(X)-1
 
-	# Exposure terms
-	exposure = y %>% rowSums()
-
-	# # Horseshoe
-	# nu_local = 1
-	# nu_global = prior$nu_global
-	# par_ratio = prior$prop_DE
-	# slab_df = prior$slab_df
-	# slab_scale = prior$scale_DE
-
 	# Run model
 	fit =
 		sampling(

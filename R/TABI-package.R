@@ -142,9 +142,9 @@ TABI_glm = function(
 	# Create tibble of covariate .data 
 	covariate_data = 
 	  .data %>%
-	  select(one_of(parse_formula(formula)), 
-	         !!.sample) %>%
-	  distinct()
+	  select(one_of(parse_formula(formula)),  !!.sample) %>%
+	  distinct() %>%
+	  arrange(!!.sample) 
 	
 	X =
 	  model.matrix(object = formula, 
@@ -153,13 +153,16 @@ TABI_glm = function(
 	  scale_design(formula)
 
 	# tt Object to run through tidyBulk
-	multiplier =
+	multiplier = 
 	  .data %>%
-	  tidybulk::tidybulk( !!.sample, !!.transcript, !!.abundance) %>%
-	   tidybulk::aggregate_duplicates() %>%
-	  tidybulk::scale_abundance(action="get") %>%
-	  arrange(!!.sample) %>%
+	  distinct(sample) %>%
+	  mutate(multiplier = 1) %>%
 	  select(multiplier)
+	  # tidybulk::tidybulk( !!.sample, !!.transcript, !!.abundance) %>%
+	  #  tidybulk::aggregate_duplicates() %>%
+	  # tidybulk::scale_abundance(action="get") %>%
+	  # arrange(!!.sample) %>%
+	  # select(multiplier)
 	
 	# Create tibble of expression data
 	# Each column is a different gene

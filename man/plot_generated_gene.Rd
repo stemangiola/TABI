@@ -4,9 +4,12 @@
 \alias{plot_generated_gene}
 \title{Plots the observed aganst the modelled read counts for a gene}
 \usage{
-plot_generated_gene(TABi_obj, gene,
-  covariate = colnames(TABi_obj$input.X)[2], CI = 1 -
-  (0.05/ncol(TABi_obj$input.y)))
+plot_generated_gene(
+  TABi_obj,
+  gene,
+  covariate = colnames(TABi_obj$input.X)[2],
+  CI = 1 - (0.05/ncol(TABi_obj$input.y))
+)
 }
 \arguments{
 \item{TABi_obj}{A TABI output object}
