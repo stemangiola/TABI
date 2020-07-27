@@ -6,7 +6,7 @@
 get_sigmoid_model = function() {
   #stanmodels$DE_sigmoid ##This should be the variant for release
   #rstan::stan_model(here::here("inst","stan","DE_sigmoid_norm_factor_log_space_fit_vert_trans.stan"))
-  rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_hierarchical.stan", auto_write = T)
+  rstan::stan_model("~/TABI/inst/stan/DE_sigmoid_hierarchical_noprior_both.stan", auto_write = T)
     }
 
 #' Perform generalised linear model on RNA seq data
@@ -26,7 +26,7 @@ sigmoid_link = function(
 	prior,
 	iter,
 	warmup,
-	model = stanmodels$DE_sigmoid_hierarchical,
+	model = stanmodels$DE_sigmoid_hierarchical_noprior,
 	control=list(
 		adapt_delta=0.8,
 		stepsize = 0.1,
