@@ -110,8 +110,10 @@ TABI_glm = function(
 	nu_global = 5,
 	slab_df = 40	,
 	iter = 500,
+  cores = 4,
+  chains = 4,
 	warmup = round(iter/2),
-	model = stanmodels$DE_sigmoid_hierarchical_noprior,
+	model = stanmodels$DE_sigmoid_hierarchical_tightprior_inflect,
 	control=list(
 		adapt_delta=0.8,
 		stepsize = 0.1,
@@ -139,6 +141,7 @@ TABI_glm = function(
 	
 	# Create design matrix
 	
+	
 	# Create tibble of covariate .data 
 	covariate_data = 
 	  .data %>%
@@ -146,6 +149,8 @@ TABI_glm = function(
 	  distinct() %>%
 	  arrange(!!.sample) 
 	
+	
+	# Design matrix, scaled covariate data corresponding to sample
 	X =
 	  model.matrix(object = formula, 
 	               data = covariate_data) %>%
@@ -155,9 +160,9 @@ TABI_glm = function(
 	# tt Object to run through tidyBulk
 	multiplier = 
 	  .data %>%
-	  distinct(sample) %>%
+	  distinct(!!.sample) %>%
 	  mutate(multiplier = 1) %>%
-	  select(multiplier)
+	  select(multiplier) #scale abundance - 
 	  # tidybulk::tidybulk( !!.sample, !!.transcript, !!.abundance) %>%
 	  #  tidybulk::aggregate_duplicates() %>%
 	  # tidybulk::scale_abundance(action="get") %>%
@@ -187,14 +192,18 @@ TABI_glm = function(
 			link,
 			"sigmoid" =
 				sigmoid_link(
-					X, y, multiplier,
+					X, 
+					y, 
+					multiplier,
 					prior,
 					iter,
 					warmup,
 					model = model,
 					control = control,
 					prior_only = prior_only,
-					shards = shards
+					shards = shards,
+					cores = cores,
+					chains = chains
 				)
 		)
 	)
