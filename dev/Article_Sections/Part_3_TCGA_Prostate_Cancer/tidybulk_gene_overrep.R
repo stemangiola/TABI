@@ -14,6 +14,54 @@
 # Show Bargraph / quadrant plot of pathway analysis for TCGA Analysis
 
 
+non_zero_slope_genes<- fit_table_purity_complete %>% 
+  filter(parameters == "beta[2,1]") %>% 
+  filter(`2.5%`<0&`97.5%`<0|`2.5%`>0&`97.5%`>0) %>% #Selecting either all > 0 for 95% interval / or all < 0
+  select(Gene_name) #Which genes
+
+
+fit_table_purity_complete_sig <-inner_join(non_zero_slope_genes, fit_table_purity_complete)
+
+inflection_plot<-fit_table_purity_complete %>% #Data Table of sig fit data
+  mutate(Slope_significance = ifelse(`2.5%`<0&`97.5%`<0|`2.5%`>0&`97.5%`>0, "Significant (n=3695)", "Non-Significant (n=31167)")) %>% 
+  filter(parameters == "beta[2,1]"|parameters == "inflection[1]") %>% #Select required parameters
+  select(parameters, mean, Gene_name, Slope_significance) %>%
+  filter(!Gene_name == "TUBBP10") %>% #Two different val for TUBP10 / possible dup?
+  pivot_wider(names_from = parameters, values_from = mean) %>% #Reshape table for plotting
+  rename(Inflection_mean="inflection[1]", Slope_mean ="beta[2,1]")%>% 
+  ggplot(aes(x=Inflection_mean, y= Slope_mean, color=Slope_significance)) +
+  geom_point(alpha=0.7) + 
+  scale_color_manual(name = "", values = c("Significant (n=3695)" = "dodgerblue","Non-Significant (n=31167)"= "black")) +
+  geom_point(col="black", alpha=0.7) + 
+  geom_point(aes(x=Inflection_mean, y= Slope_mean), alpha=0.7, col="dodgerblue", data = fit_table_purity_complete_sig %>% #Data Table of sig fit data
+               filter(parameters == "beta[2,1]"|parameters == "inflection[1]") %>% #Select required parameters
+               select(parameters, mean, Gene_name) %>%
+               filter(!Gene_name == "TUBBP10") %>% #Two different val for TUBP10 / possible dup?
+               pivot_wider(names_from = parameters, values_from = mean) %>% #Reshape table for plotting
+               rename(Inflection_mean="inflection[1]", Slope_mean ="beta[2,1]")) +
+  stat_smooth(se = FALSE, method = 'lm', col="red") + #Plot fitted linear eq
+  labs(title = "Fig 2. TABI Calculated Slope mean vs Inflection mean",
+       y="Calculated Slope Mean", 
+       x="Calculated Inflection Mean",
+       caption ="Each point represents a single gene analysed by TABI (n = 34862)") +
+  custom_theme
+
+
+
+
+
+custom_theme <-
+  list(
+    theme_bw() +
+      theme(
+        panel.border = element_blank(),
+        axis.line = element_line(),
+        text = element_text(size = 9),
+        legend.position = "bottom",
+        strip.background = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)
+      )
+  )
 
 
 
