@@ -8,7 +8,7 @@ test_that("test slope 0",{
   
   TABI_TP <- 
     TABI::test_df %>%
-    mutate(count = rnbinom(n(), 
+    mutate(count = rnbinom(nrow(TABI::test_df), 
                             mu=50, 
                                  size = 30) %>% 
                                             as.integer) %>%
@@ -19,7 +19,9 @@ test_that("test slope 0",{
       .transcript = transcript, 
       .abundance = count,
       #model = rstan::stan_model("inst/stan/DE_sigmoid_hierarchical.stan"),
-      control=list(adapt_delta=0.9,stepsize = 0.01,  max_treedepth =10  ),
+      control=list(adapt_delta=0.99, 
+                            stepsize = 0.01,  
+                                  max_treedepth =10),
       iter = 2000,
       warmup = 1000
     )
@@ -36,7 +38,7 @@ test_that("test slope 0",{
                                    magrittr::divide_by(length(x)) 
                                                          } , 
     0.5 ,
-    tolerance=0.01 
+    tolerance=0.05
   )
   
   # TABI_TP$fit %>% pairs(pars=c("beta", "inflection", "A", "od", "y_cross"))
@@ -67,7 +69,7 @@ test_that("test slope 2",{
   TABI_TP <- 
     TABI::test_df %>%
     # Simulate with slope
-    mutate(count =   rnbinom(n(), 
+    mutate(count =   rnbinom(nrow(TABI::test_df), 
                                mu =exp(
                                    sigmoid_4_param(
                                           TABI::test_df$CAPRA_S %>% scale,
@@ -86,7 +88,7 @@ test_that("test slope 2",{
       .transcript = transcript, 
       .abundance = count,
       #model = rstan::stan_model("inst/stan/DE_sigmoid_hierarchical.stan"),
-      control=list(adapt_delta=0.9,
+      control=list(adapt_delta=0.99,
                               stepsize = 0.01,  
                                       max_treedepth =10),
       iter = 2000,
