@@ -8,23 +8,33 @@ test_that("test slope 0",{
   
   TABI_TP <- 
     TABI::test_df %>%
-    mutate(count = rnbinom(n(), mu=50, size = 30) %>% as.integer) %>%
-    TABI_glm(
-      ~ CAPRA_S,
-      sample, transcript, count,
+    mutate(count = rnbinom(n(), 
+                            mu=50, 
+                                 size = 30) %>% 
+                                            as.integer) %>%
+    TABI::TABI_glm(
+      .data = .,
+      ~CAPRA_S,
+      .sample = sample, 
+      .transcript = transcript, 
+      .abundance = count,
       #model = rstan::stan_model("inst/stan/DE_sigmoid_hierarchical.stan"),
-      control=list( adapt_delta=0.9,stepsize = 0.01,  max_treedepth =10  ),
+      control=list(adapt_delta=0.9,stepsize = 0.01,  max_treedepth =10  ),
       iter = 2000,
-      warmup = 1000,
+      warmup = 1000
     )
   
   
-  expect_equal(
+  testthat::expect_equal(
     TABI_TP$fit %>% 
       rstan::extract("beta") %$% 
       beta %>% 
       as.numeric %>%
-      {x = (.); (x > 0) %>% which %>% length %>% divide_by(length(x)) } , 
+      {x = (.); (x > 0) %>% 
+                         which %>% 
+                            length %>% 
+                                   magrittr::divide_by(length(x)) 
+                                                         } , 
     0.5 ,
     tolerance=0.01 
   )
@@ -35,35 +45,55 @@ test_that("test slope 0",{
 })
 
 
-test_that("test slope 0",{
+test_that("test slope 2",{
   
-  
+  sigmoid_4_param<- function(scaled_CAPRA_S,
+                             A,
+                             y_0,
+                             slope,
+                             inflection) { 
+    
+    return((y_0 - A)*(
+                       1+exp(slope*inflection)
+                                              )/(
+                                                1+exp(-scaled_CAPRA_S %*% 
+                                                                 slope+inflection*slope %>% as.vector()) 
+                                              )
+                                                 )
+    
+    
+    }
   
   TABI_TP <- 
     TABI::test_df %>%
-    
     # Simulate with slope
-    mutate(count =   rnbinom(nrow(TABI::test_df), mu =exp(sigmoid_4_param(
-      TABI::test_df$CAPRA_S %>% scale,
-      A = 2,
-      y_cross = 0.5,
-      slope = matrix(2, nrow = 1),
-      inflection= 1
-    )), size=30)) %>%
-    mutate(CAPRA_S =  CAPRA_S %>% scale) %>%
-    
-    # Run model
-    TABI_glm(
+    mutate(count =   rnbinom(n(), 
+                               mu =exp(
+                                   sigmoid_4_param(
+                                          TABI::test_df$CAPRA_S %>% scale,
+                                           A = 2,
+                                               y_0 = 3,
+                                                      slope = 2,
+                                                            inflection= 1
+                                                                          )
+                                                                             ), 
+                                                     size=30) %>% 
+                                                         as.integer()) %>%
+    TABI::TABI_glm(
+      .data = .,
       ~ CAPRA_S,
-      sample, transcript, count,
+      .sample = sample, 
+      .transcript = transcript, 
+      .abundance = count,
       #model = rstan::stan_model("inst/stan/DE_sigmoid_hierarchical.stan"),
-      control=list( adapt_delta=0.9,stepsize = 0.01,  max_treedepth =10 ),
+      control=list(adapt_delta=0.9,
+                              stepsize = 0.01,  
+                                      max_treedepth =10),
       iter = 2000,
-      warmup = 1000,
+      warmup = 1000
     )
   
-  
-  expect_equal(
+  testthat::expect_equal(
     TABI_TP$fit %>% 
       rstan::extract("inflection") %$% 
       inflection %>% 
@@ -71,6 +101,7 @@ test_that("test slope 0",{
     1, 
     tolerance=0.5 
   )
+  
   
 })
 

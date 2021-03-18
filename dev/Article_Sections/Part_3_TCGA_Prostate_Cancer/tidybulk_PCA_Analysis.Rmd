@@ -1,0 +1,217 @@
+---
+title: "tidybulk_analysis"
+author: "Isobel Beasley"
+date: "25/02/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 0 - Preparation 
+
+```{r packages}
+
+# If package box is not installed, then install package 
+if (
+     !("box" %in% installed.packages()[ , "Package"])) {
+  install.packages("box")
+}
+
+
+# tidybulk is a bioconductor package / using github version
+
+if (
+     !("tidybulk" %in% installed.packages()[ , "Package"])) { 
+
+devtools::install_github("stemangiola/tidybulk")
+
+} 
+
+box::use(tidybulk[...]) # use tidybulk version 1.2.1 
+
+```
+
+
+```{r load_data}
+# TCGA prostate cancer dataset with all distinct / avaliable information for prostate cancer
+ed_PC_TCGA<-readRDS("~/TABI/dev/Article_Sections/ed_PC_TCGA.rds")
+
+```
+
+# 1 - Run Principal Component Analysis 
+
+```{r PCA_run}
+
+# Filter out transcripts with missing values 
+# Convert to 
+
+ed_PC_TCGA = ed_PC_TCGA %>% 
+  filter(is.na(transcript)==F, 
+       is.na(sample)==F) %>% 
+  mutate(Sample.ID = 
+                 as.factor(Sample.ID)) %>% 
+  rename(read_count = 'read count')
+
+# Give TCGA table tidybulk attributes
+
+tt_TCGA= tidybulk::tidybulk(.data = ed_PC_TCGA,
+                   .transcript = transcript,
+                   .abundance = read_count,
+                   .sample = Sample.ID)
+
+tt_TCGA = tt_TCGA %>% 
+  tidybulk::aggregate_duplicates() %>% 
+  tidybulk::identify_abundant() 
+  tidybulk::scale_abundance()
+
+#Run PCA Analysis Using tidybulk
+# Extract the top six dimensions 
+
+PC_PV = tidybulk::reduce_dimensions(
+                    tt_TCGA,
+                    method="PCA", 
+                    .dims=6)
+
+PCA_tt_TCGA = tidybulk::reduce_dimensions(
+                    tt_TCGA,
+                    method="PCA", 
+                    .dims=6,
+                    action = "add")
+
+# For plotting - to speed up process remove transcript
+# to keep only distinct sample based PCA values 
+PCA_plot_df = PCA_tt_TCGA %>% 
+              select(-transcript) %>% 
+              distinct()
+
+```
+
+# 2 - Principal Component Analysis 
+
+## 2.1 Plotting Function 
+
+```{r}
+
+#Create function for plotting of PCs coloured by covariate
+plot_PC<- function(data, #Data frame returned from tidybulk analysis 
+                   .covariate, #name of covariate column to colour plot by
+                   is_factor){ # should the covariate be treated as a factor (TRUE/FALSE value)
+  
+  
+  box::use(dplyr[...],
+           ggplot2[...],
+           gridExtra['grid_arrange_shared_legend'],
+           GGally['ggpairs'])
+  
+  
+  .covariate = enquo(.covariate)
+  
+
+  if (is_factor == TRUE) { #If the covariate being tested is continuous - use GGally
+  
+  plot_df = .data %>% 
+    select(contains("PC"),
+                          !!.covariate) %>% 
+    distinct() %>% 
+    GGally::ggpairs(columns = 1:6, 
+                    ggplot2::aes(colour=`Cell type`))
+    
+  }   
+  
+  else { #Else if covariate being tested is factor, then use gridExtra and create a list of plots
+   plot_title = paste0("PCA Plot investigating clustering by",
+                       quo_name(.covariate))
+    
+   plot_ls = lapply(1:5, 
+                function(i) 
+                   { 
+                     var_x_name <- paste0("PC", i+1)
+                     var_y_name <- paste0("PC", i)
+                     
+                     var_y <- sym(var_y_name)
+                     var_x <- sym(var_x_name)
+                     
+                     
+                     data %>% 
+                      ggplot( 
+                              aes(
+                                   colour = !!.covariate)
+                                                          ) +
+                      geom_point(
+                         aes(
+                             x = !! var_x,
+                             y = !! var_y 
+                                          ),
+                                             alpha = 0.7)
+                                                                          } 
+                                                                          )
+                                                          
+           
+    gridExtra::grid_arrange_shared_legend(grobs = plot_ls)
+  }
+  
+  
+} 
+  
+```
+
+## 2.2 Plotting all covariates as factors
+
+```{r PCA_plots}
+
+
+
+
+
+```
+
+
+## 3 - Results / Summary of PCA Analysis 
+
+```{r PCA_results}
+
+
+
+```
+
+## 4 - Test differential Abundance Between 
+
+
+
+## 5 - Does introducing covariates remove biological information?
+
+```{r lm_PCA}
+#Unfiltered data set, perform simple linear regression
+#with PC1 added as a variate
+lm_test_PCA<- PCA_tt_TCGA %>%
+  group_by(transcript) %>% 
+  summarise(# extract estimated slope (beta) and calculated pvalue
+    beta = summary(
+                    lm(
+                        log(read_count_normalised+1)~CAPRA_S +PC1)
+                                                                    )$coefficients[2,1],
+    pval= summary(
+                   lm(
+                       log(read_count_normalised+1)~CAPRA_S+PC1)
+                                                                )$coefficients[2,4])
+
+
+#For comparasion 
+#Unfiltered data set simple linear regression (no covariate)
+lm_test_nf <- PCA_tt_TCGA %>%
+              group_by(transcript) %>% 
+              summarise(# extract estimated slope (beta) and calculated pvalue
+    beta = summary(
+                    lm(
+                        log(read_count_normalised+1)~ CAPRA_S)
+                                                              )$coefficients[2,1],
+    pval= summary(
+                   lm(
+                       log(read_count_normalised+1)~`CAPRA-S`)
+                                                              )$coefficients[2,4])
+
+# Question is then, 
+
+```

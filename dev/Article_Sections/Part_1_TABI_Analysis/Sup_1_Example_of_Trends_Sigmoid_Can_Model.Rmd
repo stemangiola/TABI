@@ -1,0 +1,672 @@
+---
+title: "Supplementary 1: Example of Trends Sigmoid Can Model"
+author: "Isobel Beasley"
+date: "02/02/2021"
+output: pdf_document
+---
+
+
+```{r}
+
+# Set Up Options
+
+knitr::opts_chunk$set(echo = TRUE, 
+                      cache=FALSE, 
+                      fig.height=12, 
+                      fig.width = 15, 
+                      warning=FALSE, 
+                      message=FALSE,
+                      eval = TRUE, 
+                      fig.show=TRUE, 
+                      dpi = 2000, 
+                      fig.align='center', 
+                      out.width = '100%')
+
+# If package box is not installed, then install package 
+if (
+     !("box" %in% installed.packages()[ , "Package"])) {
+  install.packages("box")
+}
+
+box::use(ggplot2[...], 
+         latex2exp[TeX], 
+         dplyr[...], 
+         ggpubr[...])
+```
+
+## TABI Parametisation 
+
+TABI assumes that normalised bulk read counts follow a negative binomial distribution (parametised by mean $\mu$ and overdispersion parameter $\phi$). The log of the expected normalised gene read ($\log(\hat{Y})$) is fitted to a reparametrised sigmoidal curve; 
+$$ (1) \; \, GLA(X,y_0, \beta, \eta, A) = A+\frac{(y_0 -A)(1+e^{\eta \beta_1 })}{(1+e^{\eta \beta_1 -X \beta })} $$
+
+In this equation; $X$ is the design matrix containing scaled covariate data (e.g. CAPRA-S risk scores and purity scores). $y_0$ is the log of the expected read count at the middle CAPRA-S risk score. $\beta$ is the gene-wise matrix of factors (i.e. slopes, such that $\beta_1$ refers to the slope corresponding to the main factor of interest, in our case CAPRA-S). $\eta$ refers to the x coordinate of the highest rate of change in the equation (i.e. the x coordinate of the halfway point between the upper and lower plateaus) which is used to infer the stage where transcript abundance changes, and $A$ is a vertical translation parameter which alters the height of either the lower or upper plateau (depending on whether the slope is negative or positive). This equation is able to model a variety of transcript abudance trends with respect to covariate including; constitutive, linear increase or decrease,  exponential increase or decrease, increase or decrease leading to or from plateau, and two plateaus with an intermediate rising or falling phase (demonstrated in plots below).
+
+
+### Range of Trends Modelled by TABI parametised sigmoid equation
+
+```{r sigmodial graphs, echo=TRUE}
+
+# Function for sigmoid equation, (as above in reparametised TABI form)
+# For visualisation, only assume a single covariate (so design matrix is just a vector)
+
+
+# Input: x  
+# Output: log(y_hat) (log mean read count value) for that x, given parameters eta, beta and A
+sig_TABI_eq <- function(x) {
+    
+    num= (y_0-A)*(
+                   1+exp(eta*beta)
+                                   ) #Numerator of TABI parametisation (see 1. above)
+    
+    dem = (1+exp(
+                   -x*beta+eta*beta)
+                                     ) # Denominator of TABI parametisation (see 1. above)
+    
+    return(
+            (A+(num/dem)
+                          )
+                            )
+    
+    }
+
+
+## Create a plotting function for the above equation 
+
+plot_sig_example<-function(eta, #inflection parameter
+                                beta, #beta / slope parameter
+                                      y_0, # y_0 
+                                              A){ # A parameter 
+
+  
+box::use(ggplot2[...], 
+         dplyr[...])  
+
+# Function for sigmoid equation, (as above in reparametised TABI form) as above:  
+# Input: x  
+# Output: log(y_hat) (log mean read count value) for that x, given parameters eta, beta and A
+sig_TABI_eq <- function(x) {
+    
+    num= (y_0-A)*(
+                   1+exp(eta*beta)
+                                   ) #Numerator of TABI parametisation (see 1. above)
+    
+    dem = (1+exp(
+                   -x*beta+eta*beta)
+                                     ) # Denominator of TABI parametisation (see 1. above)
+    
+    return(
+            (A+(num/dem)
+                          )
+                            )
+    
+    }
+  
+
+# Add a caption to identify parameter values from the figure   
+cap = paste("Values of equation are; $\\eta =$", eta, 
+                                            ", $\\beta =$", beta,
+                                                   ", $y_{0} =$", 
+                                                          y_0, ", $A =$ ", A)
+
+
+# Plot sigmoid equation from x = -2, to = 2
+data.frame(x = c(-2,2)) %>% 
+              ggplot(aes(x=x)) + 
+stat_function(fun=sig_TABI_eq, #Plot sig_TABI_eq equation above as a line
+              geom="line", 
+              col = "firebrick")	+ 
+labs(x = "", y = "", #x="Normalised Risk Score", Remove x / y axis as will be increasing 
+     #y="Log Normalised Gene Count", 
+     caption = latex2exp::TeX(cap)) + 
+theme(panel.border = element_rect(colour = "black", fill=NA, size=1), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank())
+
+}
+
+
+# Using the above plotting function show
+# Example of trends which TABI can model: 
+
+#Constant (non-DE gene)
+p1<-plot_sig_example(eta = 0, beta = 0, y_0 = 6, A = 6) + 
+                                      labs(title = "Constant (non-DE gene)")
+
+p2<-plot_sig_example(eta = 0,beta = -0.5, y_0 = 6.5, A = 17.5) + 
+                                      labs(title = "Linear Increase")
+
+p3<-plot_sig_example(eta = 0,beta = 0.4, y_0 = 5, A= 8.5) + 
+                                      labs(title = "Linear Decrease") 
+
+p5<-plot_sig_example(eta = 2,beta = -2, y_0 = 15, A = 0.6) + 
+                                      labs(title = "Exponential Decrease")
+
+p4<-plot_sig_example(eta = 4.5, beta = 1, y_0 = 5, A = 3) + 
+                                      labs(title = "Exponential Increase") 
+
+p6<-plot_sig_example(eta = 0, beta = -2, y_0 = 4.5, A = 3) + 
+                                      labs(title = "Sigmoidal Decrease")
+
+p7<-plot_sig_example(eta = 0, beta = 2,y_0  = 4.5, A = 0) + 
+                                      labs(title = "Sigmoidal Increase")
+
+p8<-plot_sig_example(eta = 1.3, beta = 5,y_0  = 4.5, A = 0) + 
+                                      labs(title = "Sigmoidal Increase (Late)")
+
+p9<-plot_sig_example(eta = -1.3, beta = -5,y_0  = 4.5, A = 0) + 
+                                      labs(title = "Sigmoidal Decrease (Early)")
+
+
+# Combine into a single Figure 
+
+
+#Plot Constant, Plot exp increase / decrease
+#Linear increase / decrease, increase / decrease leading two or from plateau
+#Two plateau with intermediate phase rising  / lowering phase
+
+feature_plot = ggpubr::ggarrange(p1, 
+          p2, 
+          p3, 
+          p4, 
+          p5, 
+          p6, 
+          p7,
+          p8,
+          p9,
+          labels = "auto") + 
+   theme(plot.margin = margin(1.0,0.1,0.1,0.1, "cm")) 
+
+ggpubr::annotate_figure(feature_plot, 
+                bottom = "Normalised Risk Score",
+                left = "Log Normalised Gene Count",
+                fig.lab = "Supp Figure i. Range of Trends Sigmodial Equation Can Model",
+                fig.lab.size  = 16)
+
+
+ggsave("Supp_i_Range_of_Trends_Sigmodial_Equation_Model_(TABI_reparametisation).pdf",
+       width = 12, 
+       height = 14)
+
+```
+
+### Region of change able to be modelled by TABI reparametisation 
+
+The inflection parameter of the sigmoidal equation ($\eta$) captures information about 'when' a change to transcript abundance has occurred along a covariate. A higher value of $\eta$ indicate that this differential abundance occurred later (or towards the right) of a continuous covariate. 
+
+```{r}
+# Show how inflection models region of change for sigmodial equation 
+# By plotting a range of inflections (from = -2 to 2 by 0.5)
+# with all other equation parameters constant 
+
+Inflection_list = lapply(
+      seq(
+          from = -2, #Change inflection from  -2 to 2, by = 0.25 
+           to = 2,
+           by = 0.5), function(x) 
+                          print(
+                                 plot_sig_example(eta = x, 
+                                                  beta = -5, 
+                                                  y_0 = 4.5, 
+                                                  A = 3) + 
+                                   labs(
+                                     subtitle = paste("Inflection","=", x)
+                                     )
+                                                        )
+                                                          ) 
+
+Inflection_plot = ggarrange(
+                               plotlist = Inflection_list) + 
+                              theme( #Adding extra margin on top for fig lab
+                                    plot.margin = margin(1.0,
+                                                         0.1,
+                                                         0.1,
+                                                         0.1, 
+                                                         "cm")
+                                                   ) 
+  
+
+ggpubr::annotate_figure(
+                Inflection_plot, 
+                bottom = "Normalised Risk Score",
+                left = "Log Normalised Gene Count",
+                fig.lab = "Supp Figure ii. Range of Region of Change Equation Can Model",
+                fig.lab.size  = 16)
+
+
+ggsave(
+  "Supp_ii_Range_of_Region_of_Changing_Sigmodial_Equation_Model_(Negative Slope,TABI_reparametisation).pdf",
+       width = 12, 
+       height = 14)
+
+
+Inflection_list = lapply(
+      seq(
+          from = -2, #Change inflection from  -2 to 2, by = 0.25 
+           to = 2,
+           by = 0.5), function(x) 
+                          print(
+                                 plot_sig_example(eta = x, 
+                                                  beta = 5, 
+                                                  y_0 = 4.5, 
+                                                  A = 3) + 
+                                   labs(
+                                     subtitle = paste("Inflection","=", x)
+                                     )
+                                                        )
+                                                          ) 
+
+Inflection_plot = ggarrange(
+                               plotlist = Inflection_list) + 
+                              theme( #Adding extra margin on top for fig lab
+                                    plot.margin = margin(1.0,
+                                                         0.1,
+                                                         0.1,
+                                                         0.1, 
+                                                         "cm")
+                                                   ) 
+  
+
+ggpubr::annotate_figure(
+                Inflection_plot, 
+                bottom = "Normalised Risk Score",
+                left = "Log Normalised Gene Count",
+                fig.lab = "Supp Figure iii. Range of Region of Change Equation Can Model",
+                fig.lab.size  = 16)
+
+
+ggsave(
+  "Supp_iii_Range_of_Region_of_Changing_Sigmodial_Equation_Model_(Positive_Slope,TABI_reparametisation).pdf",
+       width = 12, 
+       height = 14)
+
+```
+
+A clear observation to note from this figure, is that changing the inflection has an impact on the 
+
+## Traditional / Richards Curve Parametisation 
+
+The reparameterisation above is used by the model underying TABI for inference. However, the typical parametisation of a sigmoidal function in the form $$\frac{k}{(1+\exp(x \beta - \alpha))} + A$$ was used to simulate RNA sequencing data based on sigmoidal equations. 
+
+The re-parametisation form which used used for inference by TABI is less useful for simulation as changing $\eta$ (inflection x-coordinate) with other parameters held constant causes wildly different upper and lower plateaus, which can easily unintentionally lead to unrealistic simulation data. Comparatively, the upper and lower plateau in the 
+
+### Example of Curves 
+
+```{r}
+
+
+## Create a plotting function for the Richards equation 
+
+plot_sig_rich_eg<-function(k, #Differnece between upper and lower plateau
+                                beta, #beta / slope parameter 
+                                 # (proportional to parameter beta in TABI reparametisation)
+                                     alpha, # proportional to inflection (in TABI para) 
+                                               #Inflection is - alpha / beta =
+                                              A){ #Lower plateau = A
+
+  
+require(ggplot2)
+require(dplyr)  
+
+# Function for sigmoid equation, (as above in reparametised TABI form) as above:  
+# Input: x  
+# Output: log(y_hat) (log mean read count value) for that x, given parameters eta, beta and A
+
+sig_rich_eq<- function(x) {
+  
+  # Adjust these values to see how changing these parameters alters the resulting sigmoid function
+  
+  #Lower plateau = A
+  #Upper plateaa = k + A
+  #Alpha adjusts inflection / linearly prop to slope
+  #beta adjusts slope
+  
+  # Most rapid point of change, Inflection is - alpha / beta = -alpha/ slope 
+  
+  
+  return(k/(
+             1+exp(-(
+                      alpha + x*beta)
+                                      )
+                                        ) + A) 
+}
+
+
+
+# Add a caption to identify parameter values from the figure   
+cap = paste("Values of equation are; $k =$", k, 
+                                            ", $\\beta =$", beta,
+                                                   ", $\\alpha =$", alpha, 
+                                                                  ",$A =$ ", A)
+
+# Plot sigmoid equation from x = -2, to = 2
+data.frame(x = c(-2,2)) %>% 
+              ggplot(aes(x=x)) + 
+stat_function(fun=sig_rich_eq, #Plot sig_rich_eq equation above as a line
+              geom="line", 
+              col = "firebrick")	+ 
+labs(x = "", y = "", #x="Normalised Risk Score", Remove x / y axis as will be increasing 
+     #y="Log Normalised Gene Count", 
+     caption = latex2exp::TeX(cap)) + 
+theme(panel.border = element_rect(colour = "black", fill=NA, size=1), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank())
+
+}
+
+```
+
+
+
+### Example of Simulated Data (Single Gene)
+
+Simulated Datasets of differentially abundant transcripts based on sigmoidal equation are created using the Richard's curve parametisation (see Functions_Simulated_Sigmoid_df). For example of this simulation occuring for a single gene; see below: 
+
+```{r}
+
+#Show example: 
+
+sig_eq<- function(x) {
+  
+  # Adjust these values to see how changing these parameters alters the resulting sigmoid function
+  
+  #Lower plateau = A
+  #Upper plateau = k + A
+  #Alpha adjusts inflection / linearly prop to slope
+  #beta adjusts slope
+  
+  # Most rapid point of change, Inflection is - alpha / beta = -alpha/ slope 
+  
+  k = 3
+  alpha = 0
+  beta = 2
+  A = 5
+  
+  
+  return(k/(1+exp(-(alpha + x*beta))) + A) 
+}
+
+
+#Plot of sigmoid equation
+data.frame(x = seq(from = -5, to = 5, by = 0.5)) %>% 
+  ggplot(aes(x=x)) + 
+  stat_function(fun=sig_eq, geom="line") +
+  labs(y = "Log Mean Gene Count",
+       x = "CAPRA-S")
+
+
+# Example of simulated data 
+
+#Use the equation above to simulate log_y_hat values (i.e. log of the mean read count)
+log_y_hat<-sapply(seq(from = -5, 
+                      to=5, 
+                      by = 0.5),
+                  function(x)
+                    sig_eq(x)  
+)
+
+
+#Simulated read count using
+#Negative Binomial Distribution 
+# with mean = exp(log_y_hat)
+# and dispersion value s(set below)
+
+disp = 0.85
+
+sample<-sapply(log_y_hat,
+               function(y) rnbinom(mu = exp(y), #Mean is exp of log y hat (GLA eq)
+                                   size = disp, #dispersion value 
+                                   n = 10))
+
+plot_sig<-function(x) {
+  exp(sig_eq(x))
+}
+
+f<-data.frame(x = seq(from = -5, to = 5, by = 0.5), 
+              value = log_y_hat %>% 
+                exp())
+
+#Plot simulated data 
+data.frame(
+  CAPRA_S= c(
+    sapply(seq(from = -5, to=5, by = 0.5), 
+           function(x) rep(x, 10))), 
+  sample = c(sample)
+) %>% 
+  ggplot() + 
+  geom_point(
+    aes(x=CAPRA_S, 
+        y=sample+1), 
+    col="dodgerblue")  +
+  labs(x = "", y= "") + 
+  geom_line(aes(x=x, y=value), data = f) + 
+  stat_function(fun=plot_sig, geom="line") + 
+  scale_y_log10()  + 
+  theme(panel.grid.major = element_line(colour='white', linetype = 1),
+        panel.grid.minor= element_line(colour='white', linetype = 1),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5)) %>% 
+  labs(main = "Example Simulated Gene ")
+
+````
+
+
+### Example of Simulated Data (Dataset of DE and Null Genes)
+
+
+```{r}
+
+## Set up parameter values of sigmoid functions to simulate
+
+
+
+## Slopes from -5 to 5, holding all other factors constant
+
+
+
+slopes = setdiff(seq(from=-5, to =5, by =0.5), c(0)) #Set of slopes (beta values) to simulate
+
+
+
+# Set of Ks to simulate over
+
+
+
+
+# K is the difference between the upper plateau and lower plateau (in log space) 
+# i.e. the log(mean upper plateau) - log(mean lower plateau)
+
+
+# So to check what values of k to simulate over - 
+# Use TCGA data - and take the mean at low CAPRA-S score and high CAPRA-S score for each genes
+# Then log of the difference is an empirical estimate of k
+
+# Then the value of k which are reasonable for 'true tests' (i.e. sigmoidal based simulations); 
+# Look only at upper percentiles of genes (ks differences in mean from CAPRA )
+# as a proxy for differentially expressed genes
+
+empirical_ks= TCGA %>% 
+  filter(CAPRA_S == 0 | CAPRA_S>7) %>% 
+  group_by(transcript, CAPRA_S) %>% 
+  summarise(mean = mean(read_count_normalised)) %>% 
+  mutate(CAPRA_S = paste0("CAPRA_S_", CAPRA_S)) %>% 
+  tidyr::pivot_wider(values_from = mean, names_from = CAPRA_S) %>% 
+  rowwise() %>% 
+  mutate(dif_80 = abs(CAPRA_S_8-CAPRA_S_0)) %$%
+  dif_80 %>% 
+  log()
+
+empirical_ks %>% 
+  quantile(c(0.5, 0.75, 0.9, 0.95, 0.99, 0.999, 0.9999, 1)) 
+
+# Take the 90-99.99% percentile of empirical ks to be the lower and upper bounds on simulated k range
+k_upper = empirical_ks %>% 
+  quantile(c(1))
+
+k_lower = empirical_ks %>% 
+  quantile(c(0.9))
+
+ks = seq(from = k_lower, to = k_upper, by = 0.5)  #Set of k values to simulate
+
+
+
+
+
+# A values to simulate over
+
+# A is the lower plateau value, 
+# i.e. the log (mean lower plateau)
+# use TCGA data to find reasonable values of A
+
+# Filtering out genes which have ks in the bottom 90% 
+# I.e. genes likely to be null 
+true_genes = TCGA %>% 
+  filter(CAPRA_S == 0 | CAPRA_S>7) %>% 
+  group_by(transcript, CAPRA_S) %>% 
+  summarise(mean = mean(read_count_normalised)) %>% 
+  mutate(CAPRA_S = paste0("CAPRA_S_", CAPRA_S)) %>% 
+  tidyr::pivot_wider(values_from = mean, names_from = CAPRA_S) %>% 
+  rowwise() %>% 
+  mutate(dif_80 = abs(CAPRA_S_8-CAPRA_S_0)) %>% 
+  filter(dif_80>=k_lower) %>% 
+  select(transcript)
+
+# For these true genes estimate k as 
+#  log(mean at CAPRA-S 0 ) - log(mean at CAPRA-S 8)
+empirical_ks_true= inner_join(TCGA, true_genes) %>% 
+  filter(CAPRA_S == 0 | CAPRA_S>7) %>% 
+  group_by(transcript, CAPRA_S) %>% 
+  summarise(mean = mean(read_count_normalised, na.rm = TRUE)) %>% 
+  mutate(CAPRA_S = paste0("CAPRA_S_", CAPRA_S)) %>% 
+  tidyr::pivot_wider(values_from = mean, names_from = CAPRA_S) %>% 
+  rowwise() %>% 
+  mutate(dif_80 = abs(CAPRA_S_8-CAPRA_S_0)) %$%
+  dif_80 %>% 
+  log()
+
+# Then k + A for these genes is the log of the mean of the upper plateau 
+# estimate this as the maximum of the log mean at CAPRA-S 0 or at CAPRA-S 8
+empirical_kA=inner_join(TCGA, true_genes) %>% 
+  filter(CAPRA_S == 0|CAPRA_S == 7) %>% 
+  group_by(transcript, CAPRA_S) %>% 
+  summarise(mean = mean(read_count_normalised, na.rm = TRUE)) %>% 
+  mutate(CAPRA_S = paste0("CAPRA_S_", CAPRA_S)) %>% 
+  tidyr::pivot_wider(values_from = mean, names_from = CAPRA_S) %>% 
+  rowwise() %>% 
+  mutate(max = max(CAPRA_S_7, CAPRA_S_0)) %>% 
+  filter_if(~is.numeric(.), all_vars(!is.infinite(.))) %$%
+  max %>% 
+  log() 
+
+empirical_A= (empirical_kA - empirical_ks_true)
+
+empirical_A_range = empirical_A %>% 
+  quantile(c(0, 0.5, 0.75, 0.9, 0.95, 0.99, 0.999, 0.9999, 1)) 
+
+empirical_A_range
+
+# Hence range of A values to simulate is   
+
+As = seq(from = 0, to = 7, by = 0.5) #Set of A values to simulate
+
+
+
+
+
+# Dispersion value to simulate
+
+
+# as per Hardcastle & Kelly 2010 
+# simulate from gamma distribution (shape = 0.85, scale = 0.5 )
+
+set.seed(50)
+disp = rgamma(shape = 0.85, 
+              scale = 0.5, 
+              n = 20)#Dispersion values 
+
+
+# Range of x-coordinates to simulate over
+
+x_cord = seq(from = -5, to = 5, by = 0.5) 
+
+
+#Sample size per gene to simulate - 4 samples per x_coordinate
+
+sample_sizes = 1:5*length(x_cord) 
+
+
+
+# Vector of parameters to simulate over
+par_vector= expand.grid(slopes,
+                        ks,
+                        As,
+                        sample_sizes, 
+                        disp)
+
+# Filter out vectors where A+k >= exp(14)
+
+par_vector = par_vector %>% 
+  filter(Var2+Var3<14) 
+
+library(furrr)
+
+# n workers for parallel 
+n_workers = 15
+
+plan(multisession, 
+     workers = n_workers)
+
+
+# Take random sample (10,000) of all possible parameter combinations 
+# Simulate differentials expressed genes DE over this sample 
+# Combine into a single data frame
+
+set.seed(90)
+
+par_vector = par_vector %>% 
+  sample_n(1000)
+
+sim_data_DE = future_pmap_dfr(.l = par_vector, 
+                              .f =  ~sigmoidal_sim_df(
+                                n_true_tests = length(x_cord)*3,
+                                n_false_tests = 0,
+                                beta = ..1,
+                                k = ..2,
+                                A = ..3,
+                                sample_size = ..4,
+                                disp_size = ..5,
+                                x_cord =  seq(from = -5, to =5, by =0.5)),
+                              .progress = TRUE) 
+
+# Then for parameters for null genes 
+# (Dispersion and sample size)
+# Create all possible combination of parameters and simulate null genes over these values 
+
+par_null_vector = expand.grid(sample_sizes, 
+                              disp)
+
+
+sim_data_null = future_pmap_dfr(.l = par_null_vector,
+                                .f =  ~sigmoidal_sim_df(
+                                  n_true_tests = 0,
+                                  n_false_tests = length(x_cord)*3*(nrow(par_vector) %/% nrow(par_null_vector)),
+                                  beta = "null", #Null equations - so null parameter values of sigmoid
+                                  k = "null",
+                                  A = "null",
+                                  sample_size = .x, 
+                                  disp_size = .y,
+                                  x_cord =  seq(from = -5, to =5, by =0.5)), 
+                                .progress = TRUE) 
+
+# Combine all simulated gene datasets into a single table 
+sim_data  = rbind(sim_data_null, 
+                  sim_data_DE)
+
+
+# Structure of data set 
+
+dim(sim_data)
+
+sim_data %>% head()
+
+````
