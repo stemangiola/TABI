@@ -13,6 +13,8 @@
 
 
 
+
+
 #   #    #   #   #   #   #   #   #    #   #   #   #   #  #   #    #   #   #   #   #
 
 
@@ -44,26 +46,26 @@ plot_ed_with_line<-function(gene_name, read_count_data, fit_table) {
     
     eta <- as.numeric(Gene_table %>%
                         filter(parameters == "inflection[1]") %>% 
-                        select(mean_value))
+                        dplyr::select(mean_value))
     
     
     beta_1 <- as.numeric(Gene_table %>%
                            filter(parameters == "beta1_z[1,1]") %>%
-                           select(mean_value))
+                           dplyr::select(mean_value))
     
     # beta_2<-as.numeric(Gene_table %>%
     #                      filter(parameters == "beta1_z[2,1]") %>%
-    #                      select(mean_value))
+    #                      dplyr::select(mean_value))
     
     #beta_3
     
     y_0 <- as.numeric(Gene_table %>%
                         filter(parameters == "y_cross[1]") %>%
-                        select(mean_value))
+                        dplyr::select(mean_value))
     
     A<- as.numeric(Gene_table %>%
                      filter(parameters == "A[1]") %>%
-                     select(mean_value))
+                     dplyr::select(mean_value))
     
     lin_eq<-(-x*beta_1+eta*beta_1)
     
@@ -88,7 +90,7 @@ plot_ed_with_line<-function(gene_name, read_count_data, fit_table) {
       ungroup() %>%
       spread(cov, value) %>%
       arrange(as.integer(sample_idx)) %>%
-      select(`(Intercept)`, one_of(parse_formula(formula)))
+      dplyr::select(`(Intercept)`, one_of(parse_formula(formula)))
   }
   
   
@@ -98,11 +100,11 @@ plot_ed_with_line<-function(gene_name, read_count_data, fit_table) {
                                        filter(is.na(CAPRA_S)==F, is.na(transcript)==F) %>% 
                                        filter(transcript ==gene_name)) %>%
                           as_tibble(rownames="sample_idx") %>%
-                          scale_design(~CAPRA_S) %>% select(CAPRA_S)),
+                          scale_design(~CAPRA_S) %>% dplyr::select(CAPRA_S)),
     #Combine with read counts 
     read_count_normalised = as.vector(read_count_data %>% filter(is.na(CAPRA_S)==F) %>% 
                                         filter(transcript ==gene_name) %>% 
-                                        select(`read count normalised`)) )
+                                        dplyr::select(`read count normalised`)) )
   
   line_data<-sapply(seq(from = -2, to= 2, by = 0.1), 
                     function(x) plot_line(x))
@@ -117,7 +119,9 @@ plot_ed_with_line<-function(gene_name, read_count_data, fit_table) {
     stat_function(fun=plot_line, geom="line") +
     geom_path(aes(y=y), data = line_df) + 
     scale_y_log10() +
-    labs(title=paste(gene_name),
+    #ylim(c(200, 3500)) + 
+    labs(
+      #title=paste(gene_name),
          x = "",
          y = "") #+ 
   # theme(axis.text.y = element_blank(),
@@ -154,7 +158,112 @@ fit_table_purity_complete <- readRDS("~/TABI/dev/Presentation_30_July/Regression
 # Plotting individual genes with their fitted equations
 
 
+p4<-df %>% filter(transcript == "C12orf49") %>% 
+  dplyr::rename(CAPRA_S = `CAPRA-S`) %>% 
+  filter(is.na(CAPRA_S)==F) %>% 
+  rowwise() %>% 
+  dplyr::rename(value = 'read count normalised') %>% 
+  mutate(Group = ifelse(CAPRA_S<=1, 1, ifelse(CAPRA_S>1&CAPRA_S<=3, 2, ifelse(CAPRA_S>=6, 4, 3)) )) %>% 
+  ggplot(aes(x=Group, y=value)) + 
+  geom_point(col = "dodgerblue") + 
+  scale_y_log10(breaks=c(1000,2000,3000, 4000)) +
+  scale_x_continuous(labels=scaleFUN) + 
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black") +  
+  labs(x = "", y= "") + 
+  theme(panel.grid.major = element_line(colour='white', linetype = 1),
+        panel.grid.minor= element_line(colour='white', linetype = 1),
+        panel.border = element_rect(colour = "black", fill=NA, size=1)) + 
+  labs(title = "Four Groups Approach") + 
+  custom_theme
 
+
+
+p2<-df %>% filter(transcript == "C12orf49") %>% 
+  dplyr::rename(CAPRA_S = `CAPRA-S`) %>% 
+  rowwise() %>% 
+  filter(is.na(CAPRA_S)==F) %>% 
+  dplyr::rename(value = 'read count normalised') %>% 
+  mutate(Group = ifelse(CAPRA_S<3.5, 1, 2)) %>% 
+  mutate(Group = as.double(Group)) %>% 
+  ggplot(aes(x=Group, y=value)) + 
+  geom_point(col = "dodgerblue") + 
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black") +  
+  scale_y_log10(breaks=c(1000,2000,3000, 4000)) +
+  scale_x_continuous(labels=scaleFUN) + 
+  labs(x = "", y= "") + 
+  theme(panel.grid.major = element_line(colour='white', linetype = 1),
+        panel.grid.minor= element_line(colour='white', linetype = 1),
+        panel.border = element_rect(colour = "black", fill=NA, size=1)) + 
+  labs(title = "Two Groups Approach") + 
+  custom_theme 
+
+
+scaleFUN <- function(x) sprintf("%.f", x)
+
+
+
+p3<-df %>% filter(transcript == "C12orf49") %>% 
+  dplyr::rename(CAPRA_S = `CAPRA-S`) %>% 
+  rowwise() %>% 
+  filter(is.na(CAPRA_S)==F) %>% 
+  dplyr::rename(value = 'read count normalised') %>% 
+  mutate(Group = ifelse(CAPRA_S<=2, 1, ifelse(CAPRA_S<4, 2, 3))) %>% 
+  ggplot(aes(x=Group, y=value)) + 
+  geom_point(col = "dodgerblue") + 
+  scale_y_log10(breaks=c(1000,2000,3000, 4000)) + 
+  scale_x_continuous(labels=scaleFUN) + 
+  #scale_y_log10(limits = c(1, 4000)) + 
+  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group<1.5)) +  
+  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group>=1)) + 
+  labs(x = "", y= "") + 
+  labs(title = "Three Groups Approach") + 
+  theme(panel.grid.major = element_line(colour='white', linetype = 1),
+        panel.grid.minor= element_line(colour='white', linetype = 1),
+        panel.border = element_rect(colour = "black", fill=NA, size=1)) + 
+  custom_theme 
+
+
+
+p7<-df %>% filter(transcript == "SPRY4") %>% 
+  dplyr::rename(CAPRA_S = `CAPRA-S`) %>% 
+  rowwise() %>% 
+  filter(is.na(CAPRA_S)==F) %>% 
+  rename(value = 'read count normalised') %>% 
+  ggplot(aes(x=CAPRA_S, y=value)) + 
+  geom_point(col = "dodgerblue") + 
+  scale_y_log10() + 
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(CAPRA_S>6)) +  
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(CAPRA_S<=7) %>% filter(CAPRA_S>=6)) +  
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(CAPRA_S<=6) %>% filter(CAPRA_S>=5)) + 
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(CAPRA_S<=5) %>% filter(CAPRA_S>=4)) +  
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(CAPRA_S<=4) %>% filter(CAPRA_S>=3)) + 
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(CAPRA_S<=3) %>% filter(CAPRA_S>=2)) +
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(CAPRA_S<=2) %>% filter(CAPRA_S>=1)) + 
+  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(CAPRA_S<=1) %>% filter(CAPRA_S>=0)) + 
+  labs(x = "", y= "") + 
+  theme(panel.grid.major = element_line(colour='white', linetype = 1),
+        panel.grid.minor= element_line(colour='white', linetype = 1),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+
+
+IE
+friendly_cols <- dittoSeq::dittoColors()
+
+# Set theme
+custom_theme <-
+  list(
+    scale_fill_manual(values = friendly_cols,   na.value = "black"),
+    scale_color_manual(values = friendly_cols,   na.value = "black"),
+    theme_bw() +
+      theme(
+        panel.border = element_blank(),
+        axis.line = element_line(),
+        text = element_text(size = 9),
+        legend.position = "bottom",
+        strip.background = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)
+      )
+  )
 
 
 { # Increasing (Top Row)
@@ -166,32 +275,52 @@ IE<-plot_ed_with_line("C12orf49",
                       df %>% 
                         dplyr::rename(CAPRA_S = `CAPRA-S`), 
                       fit_table_purity_complete %>% 
-                        rename(mean_value = mean))  + 
-    labs(subtitle="Early Increase") + 
+                        dplyr::rename(mean_value = mean))  + 
+    labs(title="TABI Approach", subtitle = "C12orf49") + 
     theme(panel.grid.major = element_line(colour='white', linetype = 1),
           panel.grid.minor= element_line(colour='white', linetype = 1),
-          panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+          panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+    custom_theme + 
+    scale_y_log10(breaks=c(1000,2000,3000, 4000)) 
+  
+  ggarrange(
+  annotate_figure(
+    ggarrange(IE, 
+            p2, 
+            p3, 
+            p4,
+            nrow = 2,
+            ncol = 2)), 
+    bottom = text_grob("Scaled CAPRA-S Score", size = 10),
+    left = text_grob("Normalised Transcript Abundance", size = 10, rot = 90),
+  ggplot() + theme_void(),
+  nrow = 2,
+  heights = c(1,2)) 
+  
+  
 
 IE<-plot_ed_with_line("SPRY4",
                       df%>%
                         dplyr::rename(CAPRA_S = `CAPRA-S`),
                       fit_table_purity_complete %>%
-                        rename(mean_value = mean)) +
-  labs(subtitle="Early Decrease") +
+                        dplyr::rename(mean_value = mean)) +
+  labs(subtitle="Early Decrease", title = "SPRY4") +
   theme(panel.grid.major = element_line(colour='white', linetype = 1),
         panel.grid.minor= element_line(colour='white', linetype = 1),
-        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5)) +
+  custom_theme
 
  #Middle Increase
 IM<-plot_ed_with_line("IQGAP3", 
                       df%>% 
                         dplyr::rename(CAPRA_S = `CAPRA-S`), 
                       fit_table_purity_complete %>% 
-                        rename(mean_value = mean))  + 
-  labs(subtitle="Middle Increase") + 
+                        dplyr::rename(mean_value = mean))  + 
+  labs(subtitle="Middle Increase", title = "IQGAP3") + 
   theme(panel.grid.major = element_line(colour='white', linetype = 1),
         panel.grid.minor= element_line(colour='white', linetype = 1),
-        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+  custom_theme
 
 # Late Increase
 
@@ -199,11 +328,12 @@ IL<-plot_ed_with_line("CXCR5",
                       df%>% 
                         dplyr::rename(CAPRA_S = `CAPRA-S`), 
                       fit_table_purity_complete %>% 
-                        rename(mean_value = mean))  + 
-  labs(subtitle="Late Increase") + 
+                        dplyr::rename(mean_value = mean))  + 
+  labs(subtitle="Late Increase", title = "CXCR5") + 
   theme(panel.grid.major = element_line(colour='white', linetype = 1),
         panel.grid.minor= element_line(colour='white', linetype = 1),
-        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+  custom_theme
 
 } 
 
@@ -214,33 +344,36 @@ DE<-plot_ed_with_line("SLC15A1",
                         df%>% 
                           dplyr::rename(CAPRA_S = `CAPRA-S`), 
                         fit_table_purity_complete %>% 
-                          rename(mean_value = mean)) +   
-    labs(subtitle="Early Decrease") + 
+                          dplyr::rename(mean_value = mean)) +   
+    labs(subtitle="Early Decrease", title = "SLC15A1") + 
     theme(panel.grid.major = element_line(colour='white', linetype = 1),
           panel.grid.minor= element_line(colour='white', linetype = 1),
-          panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+          panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+    custom_theme
   
   #Decreasing Middle 
  DM<-plot_ed_with_line("PROK1", 
                     df%>% 
                       dplyr::rename(CAPRA_S = `CAPRA-S`), 
                     fit_table_purity_complete %>% 
-                      rename(mean_value = mean))  + 
-   labs(subtitle="Middle Decrease") + 
+                      dplyr::rename(mean_value = mean))  + 
+   labs(subtitle="Middle Decrease", title = "PROK1") + 
    theme(panel.grid.major = element_line(colour='white', linetype = 1),
          panel.grid.minor= element_line(colour='white', linetype = 1),
-         panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+   custom_theme
   
   #Deacreasing Late
 DL<-plot_ed_with_line("LGI3", 
                       df %>% 
                         dplyr::rename(CAPRA_S = `CAPRA-S`), 
                       fit_table_purity_complete %>% 
-                        rename(mean_value = mean)) + 
-  labs(subtitle="Late Decrease") + 
+                        dplyr::rename(mean_value = mean)) + 
+  labs(subtitle="Late Decrease", title = "LG13") + 
   theme(panel.grid.major = element_line(colour='white', linetype = 1),
   panel.grid.minor= element_line(colour='white', linetype = 1),
-  panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+  panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+  custom_theme
 
 
 } 
@@ -249,13 +382,57 @@ DL<-plot_ed_with_line("LGI3",
 library(ggplot2)
 library(ggpubr)
 }
+
+plot_examples= ggarrange(IE, IM, IL, DE, DM, DL, nrow =2, 
+          ncol =3, 
+          labels = c("I", "II", "III", "IV", "V", "VI"))
   
-norm_plot<- ggarrange(IE, IM, IL, DE, DM, DL, nrow =2, 
-                      ncol =3, 
-                      labels = c("I", "II", "III", "IV", "V", "VI")
+  norm_plot<- annotate_figure(
+  plot_examples,
+            #bottom = text_grob("Scaled CAPRA-S Risk Score", hjust = -0.75, vjust = 20, size = 10),
+            left = text_grob("Normalised Transcript Abundance", 
+                             rot = 90, 
+                             vjust = 0, #-35, 
+                             hjust = 0.85, 
+                             size = 10)
 ) 
 
+  ggarrange(ggplot() + theme_void(),
+            norm_plot,
+            complex_heat_map,
+            nrow = 3,
+            labels = c("A", "B", "C"),
+            heights  = c(1, 1.5,1.25))
 
+
+p3<-p3 %>% labs(title = "Three Groups")
+p2<-p2 %>% labs(title = "Two Groups")
+p4<-p4 %>% labs(title = "Four Groups")
+
+test<-ggarrange(p2 , p3, p4,
+          ncol =3, 
+          labels = c("III.", "IV.", "V"),
+          vjust = 1
+) 
+
+I<-ggarrange(IE, eg, nrow =1, vjust = 1, labels = c("I.", "II. "))
+
+IE<-IE %>% 
+  labs(title = "TABI Approach", 
+       subtitle  = "SPRY4") 
+  
+  
+
+t1<-ggarrange(I, test, 
+             # label.x = 0.9,
+              nrow = 2) 
+
+annotate_figure(t1,
+  top = text_grob("Figure 2. Underlying Methodolgy", size = 16)
+)
+
+
+ggsave("TABI_test.pdf", width = 22, height =10)
 
 plot_B<-annotate_figure(norm_plot,
                          left = text_grob("Normalised Read Count Value", rot = 90, hjust = 0.5, x = 1, size = 16),

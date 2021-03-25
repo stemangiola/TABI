@@ -95,7 +95,7 @@ TABI_fdr_roc_stats<-function(Posterior_df,
   
   # Calculate number of tests declared significant at each level of FDR (expected number of false discoveries)
   
-  N_sig_expFDR<-sapply(seq(from =0, to = 1, by = 1/1000), # Each FDR 
+  N_sig_expFDR<-sapply(seq(from =0, to = 1, by = 1/100000), # Each FDR 
                        function(x) PEP_table %>% 
                          filter(qvalue<x) %>% 
                          nrow() 
@@ -112,7 +112,7 @@ TABI_fdr_roc_stats<-function(Posterior_df,
       dplyr::distinct()
   )
   
-  Null_tests_sig<-sapply(seq(from =0, to = 1, by = 1/1000), # Each FDR 
+  Null_tests_sig<-sapply(seq(from =0, to = 1, by = 1/100000), # Each FDR 
                          function(x) Null_tests_PEP_table %>% 
                            filter(qvalue<x) %>% 
                            nrow()
@@ -127,7 +127,7 @@ TABI_fdr_roc_stats<-function(Posterior_df,
   # Plot FDR Curves (Predicted, and Actual)
   
   FDR_df<-data.frame(
-    FDR_pred = seq(from =0, to = 1, by = 1/1000), 
+    FDR_pred = seq(from =0, to = 1, by = 1/100000), 
     FDR_true = True_FD_TABI,
     N_sig = N_sig_expFDR
   )
@@ -147,7 +147,7 @@ TABI_fdr_roc_stats<-function(Posterior_df,
   )
   
   TP<-sapply(
-    seq(from=0, to=1, by=1/1000), 
+    seq(from=0, to=1, by=1/1000000), 
     function(x) {
       True_tests_PEP_table %>% 
         filter(PEP <x) %>% 
@@ -171,7 +171,7 @@ TABI_fdr_roc_stats<-function(Posterior_df,
   
   # True Negatives 
   TN<-sapply(
-    seq(from=0, to=1, by=1/1000), 
+    seq(from=0, to=1, by=1/1000000), 
     function(x) Null_tests_PEP_table %>% 
       filter(PEP>=x) %>% 
       nrow()
@@ -747,7 +747,7 @@ Bayseq_analysis<-function(simulated_data) {
   sample_size<-simulated_data %>% 
     select(Sample) %>% 
     dplyr::distinct() %>% 
-    max()
+    nrow()
 
   
   #Calculate total number of simulated genes
@@ -858,9 +858,10 @@ Bayseq_analysis<-function(simulated_data) {
                       ) %>%  c()}
     )
     
-    return(convert)
+    
   }
   
+
   groups<-convert_sample(sample_size)
   
   groups[[1]]<-rep(1,sample_size)
@@ -1119,7 +1120,7 @@ fdr_roc<-function(pval_list, simulated_data, test_type = "EdgeR") {
   N_sig_pred<-lapply(FDR_list,
                      function(y) {
                        sapply(
-                         seq(from=0, to=1, by=1/1000), #Qvalues / FDR values
+                         seq(from=0, to=1, by=1/1000000), #Qvalues / FDR values
                          function(x) {
                            sum(
                              (
@@ -1172,7 +1173,7 @@ fdr_roc<-function(pval_list, simulated_data, test_type = "EdgeR") {
   False_Positive<-lapply(Null_pval_list,
                          function(y) {
                            sapply(
-                             seq(from=0, to=1, by=1/1000),
+                             seq(from=0, to=1, by=1/1000000),
                              function(x) {
                                sum(
                                  (
@@ -1202,7 +1203,7 @@ fdr_roc<-function(pval_list, simulated_data, test_type = "EdgeR") {
     FDR_table,
     function(x) {
       x %>% 
-        mutate(FDR_pred = seq(from=0, to=1, by=1/1000)) %>% 
+        mutate(FDR_pred = seq(from=0, to=1, by=1/1000000)) %>% 
         mutate(FDR_true = N_FP/N_sig) %>% 
         mutate_if(is.numeric, replace_na, 0) %>% 
         mutate(TP = N_sig-N_FP) %>% 
@@ -1275,7 +1276,7 @@ FDR_ROC_Bayseq<-function(table, simulated_data) {
   
   #Calculate number of Genes declared significant at each Probability value 
   
-  N_sig<-sapply(seq(from=0, to=1, by=1/1000), 
+  N_sig<-sapply(seq(from=0, to=1, by=1/1000000), 
                 function(x) {
                   full_table<-table %>% 
                                       exp() %>% 
@@ -1299,7 +1300,7 @@ FDR_ROC_Bayseq<-function(table, simulated_data) {
   
   #Calculate number of False Positives at each Probability Value
   
-  FP<-sapply(seq(from=0, to=1, by=1/1000), 
+  FP<-sapply(seq(from=0, to=1, by=1/1000000), 
              function(x) {
                full_table<-cbind(table %>% 
                                    exp(), names = simdata %>% rownames()) %>% 
@@ -1328,7 +1329,7 @@ FDR_ROC_Bayseq<-function(table, simulated_data) {
   
   #Calculate number of True Negatives at each Probability value
   
-  # TN<-sapply(seq(from=0, to=1, by=1/1000), 
+  # TN<-sapply(seq(from=0, to=1, by=1/1000000), 
   #             function(x) {
   #               full_table<-cbind(table %>% 
   #                                   exp(), names = simdata %>% rownames()) %>% 

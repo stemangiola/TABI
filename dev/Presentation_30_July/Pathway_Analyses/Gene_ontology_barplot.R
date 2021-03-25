@@ -183,20 +183,21 @@ ggplot() +
 # Set up rank by gene enrichment for plotting
 
 { DL<-DL %>% 
-    mutate(Fold_enrichment = as.numeric(Fold_enrichment)) %>% 
-  arrange(desc(Fold_enrichment))
+    arrange(desc(Fold_enrichment)) %>% 
+    mutate(Fold_enrichment = as.numeric(Fold_enrichment)) 
   
   DE<- DE %>% 
-    mutate(Fold_enrichment = -1*as.numeric(Fold_enrichment)) %>% 
-    arrange(desc(Fold_enrichment))
+    arrange(desc(Fold_enrichment)) %>% 
+    mutate(Fold_enrichment = -1*as.numeric(Fold_enrichment))
   
   IL<-IL %>% 
-    mutate(Fold_enrichment = as.numeric(Fold_enrichment)) %>% 
-    arrange(desc(Fold_enrichment))
+    arrange((Fold_enrichment)) %>% 
+    mutate(Fold_enrichment = as.numeric(Fold_enrichment))
+    
   
   IE<-IE %>% 
-    mutate(Fold_enrichment = -1*as.numeric(Fold_enrichment)) %>% 
-    arrange(desc(Fold_enrichment))
+    arrange((Fold_enrichment)) %>% 
+    mutate(Fold_enrichment = -1*as.numeric(Fold_enrichment)) 
   }
 
 
@@ -204,7 +205,7 @@ ggplot() +
 
 ggplot() + 
   sapply(1:15, function(x)
-    annotate("rect", xmin=0, xmax=IL$Fold_enrichment[x], ymin=x-0.9 , ymax=x+0.1, alpha=0.2, color="red", fill="red")
+    annotate("rect", xmin=0, xmax= IL$Fold_enrichment[x], ymin=x-0.9 , ymax=x+0.1, alpha=0.2, color="red", fill="red")
   ) + 
   sapply(1:15, function(x)
     annotate("rect", xmin=0, xmax=IE$Fold_enrichment[x], ymin=x-0.9 , ymax=x+0.1, alpha=0.2, color="blue", fill="blue")  
@@ -238,7 +239,7 @@ ggplot() +
   annotate("text", x = 25, y= 0.5, label = "Fold Enrichment", size = 5, hjust = 0) +
   labs(y= "", x = "") + 
   sapply(seq(from = -550, to = 550, by =100), function(x) 
-    annotate("text", x = x, y= -0.75, label = paste0(abs(x)), size = 4, hjust = 1)) + 
+    annotate("text", x = x, y= -0.75, label = paste0(abs(x)/100), size = 4, hjust = 1)) + 
   sapply(seq(from = -550, to = 550, by =50), function(x)
     annotate("segment", x = x, xend = x, y = 0, yend = -0.25, colour = "black", size=0.5, alpha=1)) + 
   xlim(-1300, 1300) + 
@@ -258,7 +259,7 @@ ggplot() +
 # Save plot
 # Plot saved is that of top 10 signficant / plotted with gene enrichement
 # I.e. of above code
-#ggsave("Gene_ontology_quadrant_pattern.pdf", width = 25, height = 13)
+ggsave("GO_quad_pat_consistent_sig.pdf", width = 25, height = 13)
 
 
 

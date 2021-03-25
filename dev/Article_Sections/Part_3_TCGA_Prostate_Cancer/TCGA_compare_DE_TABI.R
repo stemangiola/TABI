@@ -24,3 +24,10 @@
 # 3 groups, 7 groups for each DE sofware
 
 
+ed_PC_TCGA <- readRDS("/stornext/Home/data/allstaff/b/beasley.i/TABI/dev/ed_PC_TCGA.rds")
+
+ed_PC_TCGA %>% 
+  
+
+
+

@@ -8,23 +8,29 @@ using namespace Rcpp;
 
 
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_Isobel_clean_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_1_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_noprior_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_noprior_both_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_relaxprior_genqplot_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_tighterprior_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_tightprior_inflect_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_test_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4test_names_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_no_beta_prior_mod();
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_mod, 0},
-    {"_rcpp_module_boot_stan_fit4DE_sigmoid_Isobel_clean_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_Isobel_clean_mod, 0},
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_1_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_1_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_noprior_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_noprior_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_noprior_both_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_noprior_both_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_relaxprior_genqplot_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_relaxprior_genqplot_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_tighterprior_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_tighterprior_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_tightprior_inflect_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_hierarchical_tightprior_inflect_mod, 0},
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_mod, 0},
-    {"_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_test_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_one_gene_test_mod, 0},
     {"_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_mod, 0},
-    {"_rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_serial_mod, 0},
-    {"_rcpp_module_boot_stan_fit4test_names_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4test_names_mod, 0},
+    {"_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_no_beta_prior_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4DE_sigmoid_scale_factor_no_beta_prior_mod, 0},
     {NULL, NULL, 0}
 };
 

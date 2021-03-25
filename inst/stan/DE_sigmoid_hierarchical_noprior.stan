@@ -269,11 +269,13 @@ transformed parameters {
 	
 }
 model {
+  
+  
 real lp  = 0;
 	// Linear system
 	//Restricted priors on beta1_z[r], and inflection (were originally n(0,2)), preventing larger generated values
 	//As these dramatically increase log_y_hat - which causes problems with neg_binomial_2_log / neg_binomial_2_log_rng
-	for(r in 1:R_1) beta[r] ~ student_t(3, 0, 10);
+	for(r in 1:R_1) beta[r] ~ student_t(8, 0, 5);
 	
 	//normal~(0, 2.5)
 	
@@ -304,6 +306,12 @@ real lp  = 0;
 	
   // Horseshoe
   target += horseshoe_get_lp(y_cross_z, hs_local, hs_df, hs_global, 1, hs_c2, 4);
+  
+
+  hs_c2~student_t(3,0,10);
+  hs_global~student_t(3,0,10);
+  for (i in 1:2) hs_local[i]~student_t(3,0,10);
+  
 }
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts
