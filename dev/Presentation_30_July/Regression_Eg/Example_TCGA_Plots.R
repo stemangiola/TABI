@@ -11,10 +11,6 @@
 
 
 
-
-
-
-
 #   #    #   #   #   #   #   #   #    #   #   #   #   #  #   #    #   #   #   #   #
 
 
@@ -158,7 +154,7 @@ fit_table_purity_complete <- readRDS("~/TABI/dev/Presentation_30_July/Regression
 # Plotting individual genes with their fitted equations
 
 
-p4<-df %>% filter(transcript == "C12orf49") %>% 
+p4<-df %>% filter(transcript == "SPRY4") %>% 
   dplyr::rename(CAPRA_S = `CAPRA-S`) %>% 
   filter(is.na(CAPRA_S)==F) %>% 
   rowwise() %>% 
@@ -168,17 +164,20 @@ p4<-df %>% filter(transcript == "C12orf49") %>%
   geom_point(col = "dodgerblue") + 
   scale_y_log10(breaks=c(1000,2000,3000, 4000)) +
   scale_x_continuous(labels=scaleFUN) + 
-  geom_smooth(formula = y ~ x, method = "lm", se =FALSE, col = "black") +  
+  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group<=2)) +  
+  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group>=2 & Group<=3)) + 
+  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group>=3 & Group<=4)) + 
   labs(x = "", y= "") + 
+  #stat_summary(aes(y = value,group=1), fun =mean, colour="red", geom="line",group=1) + 
   theme(panel.grid.major = element_line(colour='white', linetype = 1),
         panel.grid.minor= element_line(colour='white', linetype = 1),
         panel.border = element_rect(colour = "black", fill=NA, size=1)) + 
   labs(title = "Four Groups Approach") + 
-  custom_theme
+  custom_theme + 
+  theme(title = element_text(size = 7)) 
 
 
-
-p2<-df %>% filter(transcript == "C12orf49") %>% 
+p2<-df %>% filter(transcript == "SPRY4") %>% 
   dplyr::rename(CAPRA_S = `CAPRA-S`) %>% 
   rowwise() %>% 
   filter(is.na(CAPRA_S)==F) %>% 
@@ -195,14 +194,27 @@ p2<-df %>% filter(transcript == "C12orf49") %>%
         panel.grid.minor= element_line(colour='white', linetype = 1),
         panel.border = element_rect(colour = "black", fill=NA, size=1)) + 
   labs(title = "Two Groups Approach") + 
-  custom_theme 
+  custom_theme + 
+  theme(title = element_text(size = 7)) 
 
 
 scaleFUN <- function(x) sprintf("%.f", x)
 
 
+just_data_plot <- df %>% filter(transcript == "SPRY4") %>% 
+  dplyr::rename(CAPRA_S = `CAPRA-S`) %>% 
+  rowwise() %>% 
+  filter(is.na(CAPRA_S)==F) %>% 
+  dplyr::rename(value = 'read count normalised') %>% 
+  ggplot(aes(x=CAPRA_S, y=value)) + 
+  geom_point(col = "dodgerblue") + 
+  scale_y_log10(breaks=c(1000,2000,3000, 4000)) + 
+  labs(x = "CAPRA-S Risk Score", y= "Normalised Transcript Abundance",
+       title = "SPRY4") + 
+  custom_theme + theme(title = element_text(size = 8))  
 
-p3<-df %>% filter(transcript == "C12orf49") %>% 
+
+p3<-df %>% filter(transcript == "SPRY4") %>% 
   dplyr::rename(CAPRA_S = `CAPRA-S`) %>% 
   rowwise() %>% 
   filter(is.na(CAPRA_S)==F) %>% 
@@ -213,14 +225,15 @@ p3<-df %>% filter(transcript == "C12orf49") %>%
   scale_y_log10(breaks=c(1000,2000,3000, 4000)) + 
   scale_x_continuous(labels=scaleFUN) + 
   #scale_y_log10(limits = c(1, 4000)) + 
-  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group<1.5)) +  
-  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group>=1)) + 
+  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group<=2)) +  
+  geom_smooth(aes(Group), formula = y ~ x, method = "lm", se =FALSE, col = "black", data = . %>% filter(Group>=2)) + 
   labs(x = "", y= "") + 
   labs(title = "Three Groups Approach") + 
   theme(panel.grid.major = element_line(colour='white', linetype = 1),
         panel.grid.minor= element_line(colour='white', linetype = 1),
         panel.border = element_rect(colour = "black", fill=NA, size=1)) + 
-  custom_theme 
+  custom_theme + 
+  theme(title = element_text(size = 7)) 
 
 
 
@@ -271,31 +284,40 @@ custom_theme <-
   #Increasing Early 
   
   #Alternative Increasing Early - SPRY4 more dramatic trend, but not as early as C12orf49
-IE<-plot_ed_with_line("C12orf49", 
+IE<-plot_ed_with_line("SPRY4", 
                       df %>% 
                         dplyr::rename(CAPRA_S = `CAPRA-S`), 
                       fit_table_purity_complete %>% 
                         dplyr::rename(mean_value = mean))  + 
-    labs(title="TABI Approach", subtitle = "C12orf49") + 
+    labs(title="TABI Approach") + #subtitle = "C12orf49") + 
     theme(panel.grid.major = element_line(colour='white', linetype = 1),
           panel.grid.minor= element_line(colour='white', linetype = 1),
           panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
     custom_theme + 
-    scale_y_log10(breaks=c(1000,2000,3000, 4000)) 
+    theme(title = element_text(size = 8)) + 
+    scale_y_log10(breaks=c(1000,2000,3000, 4000)) + 
+    labs(x = "Scaled CAPRA-S Risk Score")
   
   ggarrange(
-  annotate_figure(
-    ggarrange(IE, 
-            p2, 
+    ggarrange(
+    ggarrange(
+      just_data_plot, 
+            IE, 
+            ncol = 2), 
+    annotate_figure(
+    ggarrange(
+            p2,
             p3, 
             p4,
-            nrow = 2,
-            ncol = 2)), 
-    bottom = text_grob("Scaled CAPRA-S Score", size = 10),
-    left = text_grob("Normalised Transcript Abundance", size = 10, rot = 90),
+            nrow = 1,
+            ncol = 3), 
+    top = text_grob("Example Strafication Patterns", size = 9, hjust = 2),
+    bottom = text_grob("Set Group Number", size = 8, vjust = -1)),
+    nrow = 2),
   ggplot() + theme_void(),
   nrow = 2,
-  heights = c(1,2)) 
+  labels = c("A", "B"),
+  heights = c(1,1.2)) 
   
   
 

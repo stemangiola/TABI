@@ -85,7 +85,7 @@ plot_q2 = grid.grabExpr(simplifyEnrichment::ht_clusters(Q2,
                                     col = magma(n = 50),  
                                     min_term = 15,
                                     max_words = 5,
-                                    #show_heatmap_legend = FALSE,
+                                    show_heatmap_legend = FALSE,
                                     heatmap_legend_side = "bottom",
                                    # heatmap_legend_param = list(legend_direction = "horizontal"),
                                     column_title_gp = gpar(fontsize = 8),
@@ -184,11 +184,11 @@ ht_list = plot_q1 + plot_q2
 
 # + plot_q3 + plot_q4
 
-ggpubr::ggarrange(plot_q1,
+complex_heat_map = ggpubr::ggarrange(plot_q1,
           plot_q3,
           plot_q2,
           plot_q4,
-          labels = c("D", "", "", ""),
+          #labels = c("D", "", "", ""),
           font.label = list(size = 12),
           ncol = 2,
           nrow = 2)

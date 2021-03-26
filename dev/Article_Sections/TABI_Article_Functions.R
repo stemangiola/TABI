@@ -96,10 +96,13 @@
 #' If you only want to simulate differentially abundant transcripts, set \code{n_false_tests = 0}. 
 #' 
 #' 
+#' 
+#' 
 #' @section Detailed Description of Returned Tibble: 
 #' 
 #' The returned data frame is in the tidy format. 
 #' That is, each row is an observation, and each column is a variable.
+#' 
 #' 
 #' \strong{Columns:}  
 #' \tabular{lll}{
@@ -111,15 +114,14 @@
 #' \code{value} \tab \code{<dbl>} \tab Read count / Transcript abundance for this observation. \cr
 #' \code{log_y_hat}  \tab \code{<dbl>} \tab True log mean transcript abundance for this value of the covariate. \cr
 #' \code{slope} \tab \code{<dbl>} \tab Value for the slope. If 'NA' this is not a differentially abundant transcript. \cr
-#' \code{sample_size} \tab \code{<int>} \tab Number of biological replicates (samples) per transcript (single value per dataset)
+#' \code{sample_size} \tab \code{<int>} \tab Number of biological replicates (samples) per transcript (single value per dataset) \cr
 #' \code{inflect} \tab \code{<dbl>} \tab Value for the Inflection. If 'NA' this is not a differentially abundant transcript. \cr
 #' \code{disp} \tab \code{<dbl>} \tab Value of the dispersion \cr
 #' \code{A} \tab \code{<dbl>} \tab Value for A (the lower plateau). If 'NA' this is not a differentially abundant transcript. \cr
 #' \code{k} \tab \code{<dbl>} \tab Value for k (the upper plateau). If 'NA' this is not a differentially abundant transcript. \cr
 #' \code{seed_number} \tab \code{<int>} \tab  Seed number used for random generation of transcript abundance from mean transcript abundance and dispersion size. \cr
-#' 
-#' 
 #' }
+#' 
 #' 
 #' @param n_true_tests The number of true positive transcripts 
 #' (i.e. truly differentially abundant transcripts) 
@@ -813,7 +815,7 @@ plot_rsim_df<-function(sim_df, # Dataframe of simulated read counts (outcome of 
 #' @param .abundance Name of the column 
 #' @param .covar Name of the column of interest, i.e. the covariate. By default it is \code{CAPRA_S}
 #' @param n_groups The number of groups to stratify samples into 
-#' @param 
+#' @param covar_range
 #' 
 #' @return A list consisting of: 
 #'
