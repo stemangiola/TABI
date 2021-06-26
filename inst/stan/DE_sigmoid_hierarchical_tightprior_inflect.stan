@@ -26,24 +26,6 @@ functions{
     
   }
   
-  real gla_eq_A(row_vector x, real inflection, vector slope, real y_cross_A, real A) {
-
-  return(
-    
-       A + 
-      (
-        (y_cross_A) * 
-        exp(   
-          log1p_exp(inflection * slope[1]) -
-          log1p_exp(   -( x * slope ) + inflection * slope[1]  ) 
-          
-        )
-      ) 
-    
-  );
-    
-  }
-  
   real gla_eq_3(row_vector x, real inflection, vector slope, real y_cross, real A_y) {
 
   return(
@@ -270,15 +252,13 @@ transformed parameters {
   // Horseshoe
   vector[G] y_cross= horseshoe_get_tp(y_cross_z, hs_local, hs_global, par_ratio / sqrt(T), hs_scale_slab^2 * hs_c2);
   
-  vector<lower=0>[G] y_cross_A = y_cross - A;
-
 
 	matrix[T, G] log_y_hat;  //log of the mean of y
 	matrix[T,G] phi; //log of the precision paramter - i.e dispersion in neg binomial is 1/exp(phi)
   //hence preventing cases of multiple solutions
   
 	// Calculation of generalised logit - fitting in log space (i.e. log of the means follows gla eq)
-	for(t in 1:T) for(g in 1:G) log_y_hat[t,g] = gla_eq_A(X[t,2:(R_1+1)], inflection[g], beta[,g], y_cross_A[g], A[g]);
+	for(t in 1:T) for(g in 1:G) log_y_hat[t,g] = gla_eq(X[t,2:(R_1+1)], inflection[g], beta[,g], y_cross[g], A[g]);
 	
 	//Calculation of Overdispersion 
 	//for(g in 1:G) phi[,g] = -0.3186 * log_y_hat[,g] + od[g];
