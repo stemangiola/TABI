@@ -14,7 +14,7 @@ functions{
     
        A + 
       (
-        (y_cross) * 
+        (y_cross-A) * 
         exp(   
           log1p_exp(inflection * slope[1]) -
           log1p_exp(   -( x * slope ) + inflection * slope[1]  ) 
