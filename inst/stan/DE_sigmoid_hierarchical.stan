@@ -10,14 +10,15 @@ functions{
   
   real gla_eq(row_vector x, real inflection, vector slope, real y_cross, real A) {
 
+  real inf_slop = inflection * slope[1];
   return(
     
        A + 
       (
         (y_cross) * 
         exp(   
-          log1p_exp(inflection * slope[1]) -
-          log1p_exp(   -( x * slope ) + inflection * slope[1]  ) 
+          log1p_exp(-inf_slop) -
+          log1p_exp(   -( x * slope ) - inf_slop  ) 
           
         )
       ) 
@@ -109,7 +110,7 @@ functions{
 		int size_buffer = get_real_buffer_size(mus_sigmas, threshold);
 		int size_vector = (rows(mus_sigmas)-size_buffer)/2;
 
-		if(min(mus_sigmas[1:(size_vector*2)]) == threshold) print("ERROR! The MPI implmentation is buggy")
+		if(min(mus_sigmas[1:(size_vector*2)]) == threshold) print("ERROR! The MPI implmentation is buggy");
 
 		// Reference / exposure rate
 		lp = neg_binomial_2_lpmf(
@@ -177,7 +178,7 @@ functions{
   
     	vector[6] lp;
   
-    	lp[1] = normal_lpdf(zb | 0, 1);
+    	lp[1] = normal_lpdf(zb | 0, 2);
   	  lp[2] = normal_lpdf(local[1] | 0, 1) - 101 * log(0.5);
   	  lp[3] = inv_gamma_lpdf(local[2] | 0.5 * df, 0.5 * df);
   	  lp[4] = normal_lpdf(global[1] | 0, 1)  - 1 * log(0.5);
@@ -228,7 +229,7 @@ transformed data{
 parameters {
 	// Linear model
 	
-	row_vector[G] inflection; //Value of the inflection point on the x axis
+	row_vector<lower=-3, upper=3>[G] inflection; //Value of the inflection point on the x axis
 	
 	vector<lower=0>[G] y_cross_z; 
 	
@@ -273,12 +274,12 @@ real lp  = 0;
 	// Linear system
 	//Restricted priors on beta1_z[r], and inflection (were originally n(0,2)), preventing larger generated values
 	//As these dramatically increase log_y_hat - which causes problems with neg_binomial_2_log / neg_binomial_2_log_rng
-	for(r in 1:R_1) beta[r] ~ normal (0,2.5);
+	for(r in 1:R_1) beta[r] ~ normal (0,4);
 	
-	inflection ~ normal(0,1);
+	inflection ~ normal(0,2);
 	//y_cross ~ double_exponential(0,0.01); 
 	
-	//Vertical Translation
+	//Vertical Translation. DO NOT SET BECAUSE IT CREATES UNDETERMINABILITY
 	//A ~ normal(0,2);
 	
 	//overdispersion 
@@ -300,6 +301,8 @@ real lp  = 0;
 	
   // Horseshoe
   target += horseshoe_get_lp(y_cross_z, hs_local, hs_df, hs_global, 1, hs_c2, 4);
+  
+  
 }
 generated quantities{
   int y_gen[T,G];          // RNA-seq counts

@@ -1,4 +1,5 @@
 library(tidyverse)
+library(tidybayes)
 library(TABI)
 library(rstan)
 source("/stornext/Home/data/allstaff/m/mangiola.s/PhD/TABI/dev/Article_Sections/TABI_Article_Functions.R", echo=TRUE)
@@ -62,3 +63,5 @@ for(i in 60:100){
   fits %>% slice(i) %>% select(beta, K, A, alpha) %>% print()
   readline(prompt="Press [enter] to continue")
 }
+
+fits %>% slice(91) %>% pull(fit) %>% .[[1]] %$% fit %>% traceplot( inc_warmup=T)
