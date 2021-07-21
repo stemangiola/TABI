@@ -55,7 +55,8 @@ sigmoid_link = function(
 			warmup = warmup,
 			chains = chains,
 			cores = cores,
-			control = control
+			control = control,
+			init = init_fun <- function(...) list(inflection=as.array(c(0)))
 		)
 
 	#------------------------------#
@@ -68,23 +69,85 @@ sigmoid_link = function(
 		fit = fit,
 
 		# Produce output table posterior
-		posterior_df = fit %>%
+		posterior_df = 
+		  fit %>%
 		  tidybayes::gather_draws(beta[covariate_idx, gene_idx]) %>%
+		  
+		  # Drop bimodal
+		  ungroup() %>% 
+		  parse_summary_check_divergence() %>% 
+		
 			left_join(
 				tibble(
 					gene_idx = 1:ncol(y),
 					gene = colnames(y)
-				)
-				, by= "gene_idx"
+				), 
+				by= "gene_idx"
 			),
 
 		# Generated quantities
-		generated_quantities = fit %>%
+		generated_quantities = 
+		  fit %>%
 			tidybayes::gather_draws(y_gen[sample_idx, gene_idx] ) %>%
 			mean_qi()
 
 	)
+}
 
+#@description Get which chain cluster is more opulated in case I have divergence
+choose_chains_majority_roule = function(fit_parsed) {
+  
+  my_chains = 
+    # Calculate modes
+    fit_parsed %>%
+    select(.chain, .value) %>%
+    {
+      main_cluster =
+        (.) %>%
+        pull(.value) %>%
+        kmeans(centers = 2, nstart = 10) %>% {
+          bind_cols(
+            (.) %$% centers %>% as_tibble(.name_repair = "minimal") %>% setNames("center") ,
+            (.) %$% size %>% as_tibble(.name_repair = "minimal")  %>% setNames("size")
+          )
+        } %>%
+        arrange(size %>% desc) %>%
+        slice(1)
+      
+      (.) %>%
+        group_by(.chain) %>%
+        summarise(
+          .lower_chain = quantile(.value, probs = c(0.025)),
+          .upper_chain = quantile(.value, probs = c(0.975))
+        ) %>%
+        ungroup %>%
+        mutate(center = main_cluster %>% pull(center))
+    } %>%
+    
+    # Filter cains
+    rowwise() %>%
+    filter(between(center, .lower_chain, .upper_chain)) %>%
+    ungroup %>%
+    distinct(.chain)
+  
+  if(nrow(my_chains)==0) my_chains = fit_parsed %>% distinct(.chain)
+  
+  fit_parsed %>%
+    inner_join(my_chains ,  by = ".chain"  )
+}
+
+# @description Parse the stan fit object and check for divergences
+parse_summary_check_divergence = function(draws) {
+  draws %>%
+    
+    # If not converged choose the majority chains
+    mutate(converged = diptest::dip.test(.value) %$%	`p.value` > 0.05) %>%
+    
+    # If some proportions have not converged chose the most populated one
+    when(
+      (.) %>% distinct(converged) %>% pull(1) %>% `!` ~ choose_chains_majority_roule(.),
+      ~ (.)
+    ) 
 }
 
 
