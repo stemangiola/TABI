@@ -1,3 +1,12 @@
+# Greater than
+gt = function(a, b){	a > b }
+
+# Smaller than
+st = function(a, b){	a < b }
+
+# Negation
+not = function(is){	!is }
+
 #' Get the sigmoid model (intended for easy transition between development
 #' and release)
 #'
@@ -75,8 +84,9 @@ sigmoid_link = function(
 		  
 		  # Drop bimodal
 		  ungroup() %>% 
-		  parse_summary_check_divergence() %>% 
-		
+		  # parse_summary_check_divergence() %>% 
+		  cluster_posterior_slopes() %>% 
+		  
 			left_join(
 				tibble(
 					gene_idx = 1:ncol(y),
@@ -150,6 +160,117 @@ parse_summary_check_divergence = function(draws) {
     ) 
 }
 
+#' Get matrix from tibble
+#'
+#'
+#' @import dplyr
+#' @import tidyr
+#' @importFrom magrittr set_rownames
+#' @importFrom rlang quo_is_null
+#'
+#' @param tbl A tibble
+#' @param rownames A character string of the rownames
+#' @param do_check A boolean
+#'
+#' @return A matrix
+#'
+#' @examples
+#'
+#' library(dplyr)
+#'
+#' tidybulk::se_mini %>% tidybulk() %>% select(feature, count) %>% head %>% as_matrix(rownames=feature)
+#'
+#' @export
+as_matrix <- function(tbl,
+                      rownames = NULL,
+                      do_check = TRUE) {
+  rownames = enquo(rownames)
+  tbl %>%
+    
+    # Through warning if data frame is not numerical beside the rownames column (if present)
+    when(
+      do_check &&
+        tbl %>%
+        # If rownames defined eliminate it from the data frame
+        when(!quo_is_null(rownames) ~ (.)[,-1], ~ (.)) %>%
+        dplyr::summarise_all(class) %>%
+        tidyr::gather(variable, class) %>%
+        pull(class) %>%
+        unique() %>%
+        `%in%`(c("numeric", "integer")) %>% not() %>% any()   ~ {
+        warning("tidybulk says: there are NON-numerical columns, the matrix will NOT be numerical")
+        (.)
+      },
+      ~ (.)
+    ) %>%
+    as.data.frame() %>%
+    
+    # Deal with rownames column if present
+    when(
+      !quo_is_null(rownames) ~ (.) %>%
+        magrittr::set_rownames(tbl %>% pull(!!rownames)) %>%
+        select(-1),
+      ~ (.)
+    ) %>%
+    
+    # Convert to matrix
+    as.matrix()
+}
+
+#' @importFrom tidygraph tbl_graph
+#' @keywords internal
+#' 
+#' @param .data A tibble
+#' @param credible_interval A double
+cluster_posterior_slopes = function(draws){
+  
+  my_chains = 
+    draws %>% 
+    group_by(covariate_idx, gene_idx, .chain, .variable) %>% 
+    tidybayes::mean_qi() %>% 
+    ungroup() %>% 
+    select(.chain, .lower, .upper, .value) %>% 
+    mutate_if(is.integer, as.character) %>% 
+    nanny::combine_nest(
+      .names_from = .chain,
+      .values_from = c(.lower, .upper, .value)
+    ) %>% 
+    mutate(is_cluster = map_lgl(
+      data,
+      ~ {
+        
+          .x[1,]$.value %>% between(.x[2,]$.lower, .x[2,]$.upper) &
+          .x[2,]$.value %>% between(.x[1,]$.lower, .x[1,]$.upper)
+        
+        }
+
+    )) %>% 
+    # Find communities based on cell type clusters
+    {
+      ct_levels = (.) %>% arrange(!is_cluster) %>% select(1:2) %>% as_matrix %>% t %>% as.character() %>% unique
+      
+      (.) %>%
+        filter(is_cluster) %>% 
+        select(1:2) %>%
+        tbl_graph(
+          edges = .,
+          nodes = data.frame(name = ct_levels)
+        )%>%
+        mutate(community = as.factor(tidygraph::group_infomap())) 
+    } %>% 
+    suppressWarnings() %>% 
+    as_tibble() %>% 
+    nest(data = -community) %>% 
+    mutate(n = map_int(data, ~ nrow(.x))) %>% 
+    filter(n == max(n)) %>% 
+    unnest(data) %>% 
+    pull(name) %>% 
+    as.integer()
+  
+  draws %>% 
+    filter(.chain %in% my_chains)
+  
+}
 
 #' Simulate data
 #'

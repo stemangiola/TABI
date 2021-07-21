@@ -16,7 +16,7 @@ my_m = rstan::stan_model("inst/stan/DE_sigmoid_hierarchical.stan")
 fits = 
   
   # Decide parameters
-  expand_grid(beta = seq(-2, 2, length.out = 10), K = 4, A = 2, alpha = seq(-6, 6, length.out = 10))  %>% 
+  expand_grid(beta = seq(-2, 2, length.out = 5), K = 4, A = 2, alpha = seq(-6, 6, length.out = 5))  %>% 
   mutate(samples = pmap(
     list(beta, K, A, alpha),
     ~ sigmoidal_sim_df(n_true_tests = 1, #single gene
@@ -41,27 +41,52 @@ fits =
       .transcript = Gene_number, 
       .abundance = value,
       model = my_m,
-      iter = 800,
-      warmup = 400
+      iter = 1000,
+      warmup = 800
     )
   )) %>% 
   
   # Plot
-  mutate(X = map(fit, ~ .x$input.X %>%  rowid_to_column( "T"))) %>% 
-  mutate(y = map2(fit, X, ~ .x$fit %>% gather_draws(log_y_hat[T, G]) %>% ungroup() %>% filter(.iteration > 390) %>% left_join(.y, by="T"))) %>% 
-  mutate(p = map2(samples, y, ~ .x %>% ungroup() %>%  mutate(CAPRA_S = scale(CAPRA_S) %>% as.numeric) %>% 
-                    ggplot(aes(CAPRA_S, log(value))) + 
-                    geom_point() +
-                    geom_smooth(method="lm", color="red") +
-                    geom_line(data = .y, aes(CAPRA_S, .value, group=.draw))))
+  mutate(X = map(fit, ~ .x$input.X %>%  rowid_to_column("T"))) %>%
+  
+  # Converged chains
+  mutate(chains_converged = map(
+    fit,
+    ~ .x$posterior_df %>% distinct(.chain) %>% pull(.chain)
+  )) %>% 
+  
+  
+  mutate(y = pmap(
+    list(fit,  X, chains_converged),
+    ~ ..1$fit %>% 
+      gather_draws(log_y_hat[T, G]) %>% 
+      ungroup() %>% 
+      # filter(.iteration > 390) %>%
+      left_join(..2, by =  "T") %>% 
+      filter(.chain %in% ..3)
+  )) %>%
+  
+  mutate(
+    p = map2(
+      samples,
+      y,
+      ~ .x %>% ungroup() %>%  mutate(CAPRA_S = scale(CAPRA_S) %>% as.numeric) %>%
+        ggplot(aes(CAPRA_S, log(value))) +
+        geom_point() +
+        geom_smooth(method = "lm", color = "red") +
+        geom_line(data = .y, aes(
+          CAPRA_S, .value, group = .draw, color = factor(.chain)
+        ), alpha = 0.2)
+    )
+  )
 
 saveRDS(fits, "dev/fits.rds")
 
-for(i in 60:100){
+for(i in 1:100){
   fits %>% slice(i) %>% pull(p) %>% .[[1]] %>% plot()
   print(i)
   fits %>% slice(i) %>% select(beta, K, A, alpha) %>% print()
   readline(prompt="Press [enter] to continue")
 }
 
-fits %>% slice(91) %>% pull(fit) %>% .[[1]] %$% fit %>% traceplot( inc_warmup=T)
+fits %>% slice(11) %>% pull(fit) %>% .[[1]] %$% fit %>% traceplot( inc_warmup=T)
