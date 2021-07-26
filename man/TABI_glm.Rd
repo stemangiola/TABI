@@ -16,8 +16,10 @@ TABI_glm(
   nu_global = 5,
   slab_df = 40,
   iter = 500,
+  cores = 4,
+  chains = 4,
   warmup = round(iter/2),
-  model = stanmodels$DE_sigmoid_hierarchical,
+  model = stanmodels$DE_sigmoid_hierarchical_tightprior_inflect,
   control = list(adapt_delta = 0.8, stepsize = 0.1, max_treedepth = 10),
   prior_only = 0,
   shards = 1
