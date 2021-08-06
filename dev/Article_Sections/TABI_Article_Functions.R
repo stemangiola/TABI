@@ -241,7 +241,7 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
                           alpha = "all", # range of alpha values to simulate (proportional to inflection)
                           #by default all possible x-coordinates (- vector with min value, and max value - 
                           #otherwise a two-element vector be used as min and max values for a continuous uniform distribution)
-                          null_mean_distribution = TCGA_mean_distribution, #distribution of means for a null test (based on values of mean for a single gene and CAPRA score from TCGA)
+                          null_mean_distribution = NULL, #distribution of means for a null test (based on values of mean for a single gene and CAPRA score from TCGA)
                           seed_n = 30 #Let = FALSE if you don't want to select a random seed used, else give numerical value 
                           # If simulating multiple datasets - and wanting different x-coordinate values
                           # then seed_n should be false - the seed number used will be returned in the data frame for reproducibility
@@ -268,13 +268,23 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
   # Distribution of mean values for null tests in simulation 
   # Take at the distribution of means from TCGA - for gene and CAPRA_S i.e. 
   
+  if(null_mean_distribution == "TCGA_mean_distribution"){
+  
   load("/stornext/Home/data/allstaff/b/beasley.i/TABI/dev/Copy_Of_Article_Sections/TCGA_Prostate_Simple.rda")
   
   TCGA_mean_distribution = TCGA %>% 
     group_by(transcript, CAPRA_S) %>% 
     summarise(mean = mean(read_count_normalised)) %$%
     mean
+  }
   
+  if( is.null(null_mean_distribution) & n_false_tests > 0){
+    
+    stop("If you're simulating null tests you need to provide a distribution of null means to sample from. \n 
+         Please set null_mean_distribution to be a vector of values in this distribution, rather than \n
+         null_mean_distribution = NULL)")
+    
+  }
 
   
   # Total number of genes / transcripts / tests to simulate 
