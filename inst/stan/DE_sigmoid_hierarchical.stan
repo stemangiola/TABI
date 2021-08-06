@@ -231,13 +231,13 @@ parameters {
 	
 	row_vector<lower=-3, upper=3>[G] inflection; //Value of the inflection point on the x axis
 	
-	vector<lower=0>[G] y_cross_z; 
+	vector<lower=0>[G] y_cross; 
 	
 	//Vector of slopes 
 	matrix[R_1,G] beta; 
 	
 	//Vertical Translatioon
-	vector[G] A;
+	vector[G] A_z;
 
   // Overdispersion
 	vector[G] od;
@@ -251,7 +251,7 @@ parameters {
 transformed parameters {
   
   // Horseshoe
-  vector[G] y_cross= horseshoe_get_tp(y_cross_z, hs_local, hs_global, par_ratio / sqrt(T), hs_scale_slab^2 * hs_c2);
+  vector[G] A= horseshoe_get_tp(A_z, hs_local, hs_global, par_ratio / sqrt(T), hs_scale_slab^2 * hs_c2);
 
 
 	matrix[T, G] log_y_hat;  //log of the mean of y
@@ -277,7 +277,7 @@ real lp  = 0;
 	for(r in 1:R_1) beta[r] ~ normal (0,4);
 	
 	inflection ~ normal(0,2);
-	//y_cross ~ double_exponential(0,0.01); 
+	y_cross ~ skew_normal(5, 2, -2.7); 
 	
 	//Vertical Translation. DO NOT SET BECAUSE IT CREATES UNDETERMINABILITY
 	//A ~ normal(0,2);
@@ -300,7 +300,7 @@ real lp  = 0;
 	));
 	
   // Horseshoe
-  target += horseshoe_get_lp(y_cross_z, hs_local, hs_df, hs_global, 1, hs_c2, 4);
+  target += horseshoe_get_lp(A_z, hs_local, hs_df, hs_global, 1, hs_c2, 4);
   
   
 }
