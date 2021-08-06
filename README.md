@@ -13,7 +13,7 @@ To apply TABI, read count data should be a table (tibble, data.frame) in tidy fo
 
 # Example usage on a subset of 100 transcripts from the TCGA Dataset
 
-We provide a example below of running TABI on a subset of transcripts from the TCGA prostate cancer data. In this example we have undertaken RNA sequencing on tumours from a cohort of patients with prostate cancer. We are interested in using TABI to measure how read count varies across a pseudo-continuous factor of interest, CAPRA-S (a clinical measurement of likelihood of prostate cancer reoccurrence).
+We provide a example below of running TABI on a subset of transcripts from the TCGA prostate cancer data. In this example we have undertaken RNA sequencing on tumours from a cohort of patients with prostate cancer. We are interested in using TABI to measure how read count varies across a pseudo-continuous factor of interest, CAPRA-S (a clinical measurement of likelihood of prostate cancer reoccurrence). We also believe purity score of the tumour may be impacting read count, 
 
 ```R
 
@@ -37,23 +37,22 @@ head(TCGA_example) # For example see format of TCGA
 TCGA_example_na_rm = TCGA_example %>% dplyr::filter(!is.na(CAPRA_S))
 
 
-# If we are interested in 
+# Run TABI_glm across multiple genes
 
-# Run TABI_glm 
-
-TABI::TABI_glm(
- .data = TCGA_example_na_rm,
- .transcript = transcript, #The column which identifies the transcript 
- .sample = sample.ID, # The column which identifies the sample
- .abundance = read_count, # The column of read count 
-	formula = ~ CAPRA_S+purity.score,
-	
+TABI_TCGA_resTABI::TABI_glm(
+                            .data = TCGA_example_na_rm, 
+                            .transcript = transcript, #The column which identifies the transcript 
+                            .sample = sample.ID, # The column which identifies the sample
+                            .abundance = read_count, # The column of read count 
+	                          formula = ~ CAPRA_S+purity.score
 )
+
+# 
 
 
 ```
 
- We also found previously using PCA the purity score of the tumour sample , hence we 
+ 
 
 
 

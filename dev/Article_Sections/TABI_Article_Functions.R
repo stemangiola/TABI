@@ -247,28 +247,38 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
                           # then seed_n should be false - the seed number used will be returned in the data frame for reproducibility
                           ){ 
   
-  # box::use(reshape2[...],
-  #          dplyr[...],
-  #          data.table[...],
-  #          magrittr[...], 
-  #          stats[...])
+
   
-  # Distribution of mean values for null tests in simulation 
-  # Take at the distribution of means from TCGA - for gene and CAPRA_S i.e. 
   
-  # load("dev/Article_Sections/TCGA_Prostate_Simple.rda")
-  # 
-  # TCGA_mean_distribution = TCGA %>% 
-  #   group_by(transcript, CAPRA_S) %>% 
-  #   summarise(mean = mean(read_count_normalised)) %$%
-  #   mean
+  ############################################################################
   
-  TCGA_mean_distribution = exp(6)
+  # Set up 
+  
+  box::use(reshape2[...],
+           dplyr[...],
+           data.table[...],
+           magrittr[...], 
+           stats[...])
+
   
   # require(reshape2)
   # require(stats)
   # require(dplyr)
   # require(data.table)
+  
+  # Distribution of mean values for null tests in simulation 
+  # Take at the distribution of means from TCGA - for gene and CAPRA_S i.e. 
+  
+
+  load("/stornext/Home/data/allstaff/b/beasley.i/TABI/dev/Copy_Of_Article_Sections/TCGA_Prostate_Simple.rda")
+  
+  TCGA_mean_distribution = TCGA %>% 
+    group_by(transcript, CAPRA_S) %>% 
+    summarise(mean = mean(read_count_normalised)) %$%
+    mean
+  
+
+
   
   # Total number of genes / transcripts / tests to simulate 
   
@@ -464,7 +474,7 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
   sig_eq<-function(x, Alpha) {
     
     #Lower plateau = A
-    #Upper plateau = k + A
+    #Upper plateau = k 
     #Alpha adjusts inflection
     #beta adjusts slope
     
@@ -476,7 +486,10 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
     
    sig_eq_res = c(x, 
                   alpha_val, 
-                  k/(1+exp(-(alpha_val + x*beta))) + A)  
+                  (k-A)/(1+exp(
+                                -(alpha_val + x*beta))
+                                                        ) + A
+                                                               )  
    
     
    names(sig_eq_res) = c("CAPRA_S",
@@ -724,8 +737,8 @@ plot_rsim_df<-function(sim_df, # Dataframe of simulated read counts (outcome of 
     att= sim_df %>% 
        ungroup() %>% 
        filter(Gene_ref == gene_name) %>%
-      select(sample_size, slope, inflec) %>%
-      mutate(slope = paste(slope, "Inflection  = ", inflec)) %>% 
+      select(sample_size, slope, inflect) %>%
+      mutate(slope = paste(slope, "inflection  = ", inflect)) %>% 
       select(sample_size, slope) %>% 
       distinct() }
 
@@ -761,7 +774,21 @@ plot_rsim_df<-function(sim_df, # Dataframe of simulated read counts (outcome of 
    theme(panel.border = element_rect(colour = "black", fill=NA, size=1), 
          panel.background = element_blank(),
          panel.grid.major = element_line(colour = "grey84"), 
-         panel.grid.minor = element_line(colour = "grey84", linetype = 2))
+         panel.grid.minor = element_line(colour = "grey84", linetype = 2)) + 
+   list(
+     #scale_fill_manual(values = friendly_cols,   na.value = "black"),
+     #scale_color_manual(values = friendly_cols,   na.value = "black"),
+     theme_bw() +
+       theme(
+         panel.border = element_blank(),
+         axis.line = element_line(),
+         text = element_text(size = 9),
+         legend.position = "bottom",
+         strip.background = element_blank(),
+         axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)
+       )
+   )
+ 
   
   print(plot)
   

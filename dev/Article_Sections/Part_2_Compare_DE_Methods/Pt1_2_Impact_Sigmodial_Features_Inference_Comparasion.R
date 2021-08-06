@@ -316,10 +316,12 @@ sample_size_sim<-
                      null_mean_distribution = TCGA_mean_distribution
     )) 
 
-slope_sim<- Reduce(rbind, slope_sim) 
+slope_sim<- Reduce(rbind, 
+                         slope_sim) 
 
 
-sample_size_sim<- Reduce(rbind, sample_size_sim) 
+sample_size_sim<- Reduce(rbind, 
+                               sample_size_sim) 
 
 
 

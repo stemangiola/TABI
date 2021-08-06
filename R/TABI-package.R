@@ -47,13 +47,25 @@ NULL
 
 #' Formula parser
 #'
-#' @param fm A formula
-#' @return A character vector
+#' @description Check the formula parameter is in the correct form, 
+#' if it is produce a list of calls (the covariates)
+#'
+#' @param fm A formula (typically from TABI_glm)
+#' @return A list of calls
 #'
 #'
 parse_formula <- function(fm) {
-	if(attr(terms(fm), "response") == 1) stop("The formula must be of the kind \"~ covariates\" ")
-	else as.character(attr(terms(fm), "variables"))[-1]
+  
+	if(attr(terms(fm), 
+	            "response") == 1) {
+	  stop("The formula must be of the kind \"~ covariates\" ") 
+	  
+	 
+	  } else {
+	           as.character(
+	                         attr(terms(fm), 
+	                                         "variables"))[-1]
+  } 
 }
 
 #' Scale design matrix
@@ -62,30 +74,53 @@ parse_formula <- function(fm) {
 #' @return A tibble
 #'
 #'
-scale_design = function(df, formula){
+scale_design = function(df, 
+                            formula){
+  
+  
 	df %>%
-		setNames(c("sample_idx", "(Intercept)", parse_formula(formula))) %>%
-		gather(cov, value, -sample_idx) %>%
+		setNames(c("sample_idx", 
+		                     "(Intercept)", 
+		                             parse_formula(formula))
+		                                                     ) %>%
+		gather(cov,
+		            value, 
+		                  -sample_idx) %>%
 		group_by(cov) %>%
-		mutate( value = ifelse( !grepl("Intercept", cov) & length(union(c(0,1), value)) != 2, scale(value), value )) %>%
+		mutate( value = ifelse( !grepl("Intercept", cov) & length(union(c(0,1), value)) != 2, 
+		                                                                                      scale(value), value )) %>%
 		ungroup() %>%
-		spread(cov, value) %>%
-		arrange(as.integer(sample_idx)) %>%
-		select(`(Intercept)`, one_of(parse_formula(formula)))
+		spread(cov, 
+		            value) %>%
+		arrange(
+		        as.integer(sample_idx)
+		                               ) %>%
+		select(`(Intercept)`, 
+		                     one_of(parse_formula(formula)))
 }
 
 #' make a function to combine the results
 stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
 
 
-#' Perform generalised linear model on RNA seq data
+#' Perform generalised linear model on RNA sequencing data
 #'
-#' @param formula A formula
-#' @param .data A tibble
-#' @param link A character string
-#' @param .sample A column name
-#' @param .abundance A column name
-#' @param  .transcript A column name
+#' @description \code{TABI_glm} uses TABI's model defined to perform differential 
+#' transcript abundance analysis along a continuous or pseudo-continuous variable. TABI's model is a generalised linear model,
+#' with sigmoidal link function between the scaled covariate/s, and log mean transcript abundance. 
+#' 
+#' 
+#' @param .data A data frame or tibble
+#' @param formula A formula which describes the 
+#' (Should be in the form ~main_factor_of_interest + confounding_factor_1 + confounding_factor_2 ...)
+#' @param .sample A column name for the sample identification (e.g. patient id, sample id etc.)
+#' @param .abundance A column name for the raw read count 
+#' @param  .transcript A column name for the gene or transcription identification 
+#' @param link A character string 
+#' @param propDE Prior
+#' @param scale_DE Prior 
+#' @param nu_global Prior
+#' @param 
 #' 
 #' @importFrom tidybulk tidybulk
 #' @importFrom dplyr mutate_if
@@ -94,7 +129,7 @@ stan.combine <- function(...) { return( sflist2stanfit( list(...) )  ) }
 #' @importFrom tidybulk scale_abundance
 #' @importFrom tidybulk aggregate_duplicates
 #' 
-#' @return A tibble
+#' @return A list of 4 elements: fit (the stanfit object), 
 #' 
 #' @export
 #'
@@ -127,7 +162,7 @@ TABI_glm = function(
   
 	# Set prior
 	prior = list(
-		prop_DE =prop_DE,
+		prop_DE = prop_DE,
 		scale_DE = scale_DE,
 		nu_global = nu_global,
 		slab_df = slab_df
@@ -153,7 +188,7 @@ TABI_glm = function(
 	# Design matrix, scaled covariate data corresponding to sample
 	X =
 	  model.matrix(object = formula, 
-	               data = covariate_data) %>%
+	                   data = covariate_data) %>%
 	  as_tibble(rownames="sample_idx") %>%
 	  scale_design(formula)
 

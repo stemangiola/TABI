@@ -14,7 +14,7 @@ functions{
     
        A + 
       (
-        (y_cross) * 
+        (y_cross - A) * 
         exp(   
           log1p_exp(inflection * slope[1]) -
           log1p_exp(   -( x * slope ) + inflection * slope[1]  ) 
@@ -230,7 +230,9 @@ parameters {
 	
 	row_vector[G] inflection; //Value of the inflection point on the x axis
 	
-	vector<lower=0>[G] y_cross_z; 
+	//vector<lower=0>[G] y_cross_z; 
+	
+	vector<lower=0>[G] y_cross_raw;
 	
 	//Vector of slopes 
 	matrix[R_1,G] beta; 
@@ -250,8 +252,8 @@ parameters {
 transformed parameters {
   
   // Horseshoe
-  vector[G] y_cross= horseshoe_get_tp(y_cross_z, hs_local, hs_global, par_ratio / sqrt(T), hs_scale_slab^2 * hs_c2);
-  
+ // vector[G] y_cross= horseshoe_get_tp(y_cross_z, hs_local, hs_global, par_ratio / sqrt(T), hs_scale_slab^2 * hs_c2);
+  vector[G] y_cross = y_cross_raw + A;
 
 	matrix[T, G] log_y_hat;  //log of the mean of y
 	matrix[T,G] phi; //log of the precision paramter - i.e dispersion in neg binomial is 1/exp(phi)
@@ -311,7 +313,7 @@ real lp  = 0;
 	));
 	
   // Horseshoe
-  target += horseshoe_get_lp(y_cross_z, hs_local, hs_df, hs_global, 1, hs_c2, 4);
+ // target += horseshoe_get_lp(y_cross_z, hs_local, hs_df, hs_global, 1, hs_c2, 4); 
   
 
   hs_c2~student_t(3,0,10);

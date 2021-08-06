@@ -83,7 +83,7 @@ make_groups<-function(table, #Table of simulated RNA seq data counts
   
   # Number of distinct simulated x-coordinate values 
   n_cord = length(x_cord)
-  
+
   # Reduce df of simulated data to only required samples
   # sample id column (sample)
   # name of transcript 
@@ -1265,7 +1265,7 @@ data_smaller = data %>% ungroup() %>% filter(slope < 0)
 
 # 
 
-data = bocplot_eror_df 
+  data = bocplot_eror_df 
 data_bigger %>% 
   filter(Method == "TABI") %>% 
   mutate(n_groups = 0) %>% 
@@ -1286,7 +1286,7 @@ data_bigger %>%
   geom_line()
 
 p1 = data_bigger %>% 
-  group_by(Value, Method, n_groups, sample_size, slope) %>% 
+  group_by(Value, Method, sample_size, slope) %>% 
   summarise(mean_error = mean(error)) %>% 
   ungroup() %>% 
   mutate(sample_size = as.factor(sample_size)) %>% 
@@ -1298,8 +1298,96 @@ p1 = data_bigger %>%
   custom_theme_2
 
 
+data_bigger %>% 
+  group_by(Method, n_groups, sample_size) %>% 
+  summarise(mean_error = mean(error)) %>% 
+  ungroup() %>% 
+  mutate(sample_size = as.factor(sample_size)) %>% 
+  filter(Method == "limma + voom") %>% 
+  ggplot(aes(y=mean_error, x=n_groups, group = sample_size, col = sample_size)) + 
+  geom_line() + 
+  labs(y = "", x = "", title = "TABI", col = "Sample Size") + 
+  ylim(0,2.5) + 
+  custom_theme_2
+
+p11 = data_bigger %>% 
+  group_by(Method, n_groups, slope) %>% 
+  summarise(mean_error = mean(error)) %>% 
+  ungroup() %>% 
+  mutate(slope = as.factor(slope)) %>% 
+  filter(Method == "edgeR") %>% 
+  ggplot(aes(y=mean_error, x=n_groups, group = slope, col = slope)) + 
+  geom_line() + 
+  labs(y = "", x = "", title = "edgeR", col = "Slope") + 
+  ylim(0,2.5) + 
+  custom_theme_2
+
+p21 = data_bigger %>% 
+  group_by(Method, n_groups, sample_size) %>% 
+  summarise(mean_error = mean(error)) %>% 
+  ungroup() %>% 
+  mutate(sample_size = as.factor(sample_size)) %>% 
+  filter(Method == "edgeR") %>% 
+  ggplot(aes(y=mean_error, x=n_groups, group = sample_size, col = sample_size)) + 
+  geom_line() + 
+  labs(y = "", x = "", title = "edgeR", col = "Sample Size") + 
+  ylim(0,2.5) + 
+  custom_theme_2
+
+
+p12 = data_bigger %>% 
+  group_by(Method, n_groups, slope) %>% 
+  summarise(mean_error = mean(error)) %>% 
+  ungroup() %>% 
+  mutate(slope = as.factor(slope)) %>% 
+  filter(Method == "DESeq2") %>% 
+  ggplot(aes(y=mean_error, x=n_groups, group = slope, col = slope)) + 
+  geom_line() + 
+  labs(y = "", x = "", title = "DESeq2", col = "Slope") + 
+  ylim(0,2.5) + 
+  custom_theme_2
+
+p22 = data_bigger %>% 
+  group_by(Method, n_groups, sample_size) %>% 
+  summarise(mean_error = mean(error)) %>% 
+  ungroup() %>% 
+  mutate(sample_size = as.factor(sample_size)) %>% 
+  filter(Method == "DESeq2") %>% 
+  ggplot(aes(y=mean_error, x=n_groups, group = sample_size, col = sample_size)) + 
+  geom_line() + 
+  labs(y = "", x = "", title = "DESeq2", col = "Sample Size") + 
+  ylim(0,2.5) + 
+  custom_theme_2
+
+p13 = data_bigger %>% 
+  group_by(Method, n_groups, slope) %>% 
+  summarise(mean_error = mean(error)) %>% 
+  ungroup() %>% 
+  mutate(slope = as.factor(slope)) %>% 
+  filter(Method == "limma + voom") %>% 
+  ggplot(aes(y=mean_error, x=n_groups, group = slope, col = slope)) + 
+  geom_line() + 
+  labs(y = "", x = "", title = "limma + voom", col = "Slope") + 
+  ylim(0,2.5) + 
+  custom_theme_2
+
+p23 = data_bigger %>% 
+  group_by(Method, n_groups, sample_size) %>% 
+  summarise(mean_error = mean(error)) %>% 
+  ungroup() %>% 
+  mutate(sample_size = as.factor(sample_size)) %>% 
+  filter(Method == "limma + voom") %>% 
+  ggplot(aes(y=mean_error, x=n_groups, group = sample_size, col = sample_size)) + 
+  geom_line() + 
+  labs(y = "", x = "", title = "limma + voom", col = "Sample Size") + 
+  ylim(0,2.5) + 
+  custom_theme_2
+
+ggarrange(p11, p12, p13, p21, p22, p23, nrow =2, ncol = 3)
+
+
 p2 = data_bigger %>% 
-  group_by(Value, Method, n_groups, sample_size, slope) %>% 
+  group_by(Method, sample_size, slope) %>% 
   summarise(mean_error = mean(error)) %>% 
   ungroup() %>% 
   mutate(sample_size = as.factor(sample_size)) %>% 
@@ -1312,7 +1400,7 @@ p2 = data_bigger %>%
 
 
 p3 = data_bigger %>% 
-  group_by(Value, Method, n_groups, sample_size, slope) %>% 
+  group_by(Method,sample_size, slope) %>% 
   summarise(mean_error = mean(error)) %>% 
   ungroup() %>% 
   mutate(sample_size = as.factor(sample_size)) %>% 
@@ -1324,7 +1412,7 @@ p3 = data_bigger %>%
   custom_theme_2
 
 p4 = data_bigger %>% 
-  group_by(Value, Method, n_groups, sample_size, slope) %>% 
+  group_by(Method, sample_size, slope) %>% 
   summarise(mean_error = mean(error)) %>% 
   ungroup() %>% 
   mutate(sample_size = as.factor(sample_size)) %>% 
@@ -1337,52 +1425,57 @@ p4 = data_bigger %>%
 
 
 
+
 bottom_plot = ggpubr::annotate_figure(ggpubr::ggarrange(p1, p2,p3, p4, 
                                           ncol = 4, 
                                           common.legend = TRUE, 
                                           legend = "bottom"), 
-bottom = text_grob("Slope", vjust = -4),
-                                left = text_grob("Mean Error", rot = 90))
+bottom = text_grob("Slope", vjust = -4, size = 10),
+                                left = text_grob("Mean Error", rot = 90, size = 10))
 
 data_bigger %>% 
   group_by(Value, Method, n_groups, sample_size, slope) %>% 
   summarise(mean_error = mean(error)) %>% 
-  ungroup() %>% 
+  ungroup() %>%
   mutate(slope = as.factor(slope)) %>% 
   filter(Method == "DESeq2") %>% 
   ggplot(aes(y=mean_error, x=sample_size, group = slope, col = slope)) + 
   geom_point()
 
-top_plot = data_bigger %>%
+top_plot_data = data %>% 
+  filter(sample_size == 22, slope == 0.5) 
+
+top_plot = top_plot_data %>% 
   ggplot(aes(y=error,
              x = n_groups,
              group = Value,
              fill = Method)) +
   geom_boxplot() +
-  facet_grid(rows = vars(sample_size), cols = vars(slope)) + 
+  #facet_grid(rows = vars(sample_size), cols = vars(slope)) + 
   #stat_summary(fun=mean, geom="line", aes(group=1))  +
-  stat_summary(fun=mean, geom="line", aes(x=0, col = Method), data= data_bigger %>% filter(Method == "TABI")) + 
-  stat_summary(fun=mean, geom="line", aes(group=1, col = Method), data= data_bigger %>% filter(Method == "edgeR"))  +
-  stat_summary(fun=mean, geom="line", aes(group=1, col = Method), data= data_bigger %>% filter(Method == "limma + voom"))  +
-  stat_summary(fun=mean, geom="line", aes(group=1, col = Method), data= data_bigger %>% filter(Method == "DESeq2"))  +
+  stat_summary(fun=mean, geom="line", aes(x=0, col = Method), data= top_plot_data %>% filter(Method == "TABI")) + 
+  stat_summary(fun=mean, geom="line", aes(group=1, col = Method), data= top_plot_data %>% filter(Method == "edgeR"))  +
+  stat_summary(fun=mean, geom="line", aes(group=1, col = Method), data= top_plot_data %>% filter(Method == "limma + voom"))  +
+  stat_summary(fun=mean, geom="line", aes(group=1, col = Method), data= top_plot_data %>% filter(Method == "DESeq2"))  +
   #stat_summary(fun=mean, geom="point", aes(group = Value), position = position_dodge(0.75), shape = 18, size = 2) +
   labs(x = "Number of Groups",
        y = expression(atop("Error", "(Absolute Difference between True and Estimated Time of Change"))) +
   scale_fill_discrete(name =  "Method") +
   scale_linetype_discrete(name =  "Method") + 
-  facet_grid(rows = vars(sample_size), cols = vars(slope)) + 
+  #facet_grid(rows = vars(sample_size), cols = vars(slope)) + 
   stat_summary(fun="mean", geom = "errorbar", aes(ymax = ..y.., ymin = ..y.., group = Value), linetype = "dashed") + 
-  #labs(title = "Error in Estimating Most Rapid Point of Change to Transcript Abudance") + 
   custom_theme
 
-top_plot = annotate_figure(top_plot, 
-                top =  text_grob("Slope", vjust = 2, size = 10),
-                right = text_grob("Sample Size", rot = 90, size = 10, vjust = - 0.5))
+#labs(title = "Error in Estimating Most Rapid Point of Change to Transcript Abudance") + 
+
+# top_plot = annotate_figure(top_plot, 
+#                 top =  text_grob("Slope", vjust = 2, size = 10),
+#                 right = text_grob("Sample Size", rot = 90, size = 10, vjust = - 0.5))
 
 ggarrange(top_plot,
           bottom_plot,
           ncol = 1,
-          heights = c(2.5,1),
+          heights = c(2,1),
           labels = c("A", "B"))
   
 if (!requireNamespace("BiocManager", quietly = TRUE))
@@ -1392,7 +1485,7 @@ BiocManager::install("dittoSeq")
   
 
   friendly_cols <- dittoSeq::dittoColors()
-friendly_cols <- brewer.pal(n =4, name = "Dark2")
+#friendly_cols <- brewer.pal(n =4, name = "Dark2")
 friendly_cols_fil<-brewer.pal(n =4, name = "Dark2")
 
 
@@ -1428,11 +1521,18 @@ custom_theme_2 <-
       )
   )
 
-ggsave("Postive_Slopes_Inflection_Error_Est_All.pdf",
+ggsave("Figure_2_v4.pdf",
        width = 183,
        height = 238,
        units = "mm"
        ) 
+
+ggsave("Figure_2_v4.pdf",
+       width = 183,
+       height = 203,
+       units = "mm"
+) 
+
 
 saveRDS(data, file = "boxplot_error_df.rds")
 
