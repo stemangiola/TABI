@@ -247,22 +247,23 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
                           # then seed_n should be false - the seed number used will be returned in the data frame for reproducibility
                           ){ 
   
-  box::use(reshape2[...],
-           dplyr[...],
-           data.table[...],
-           magrittr[...], 
-           stats[...])
+  # box::use(reshape2[...],
+  #          dplyr[...],
+  #          data.table[...],
+  #          magrittr[...], 
+  #          stats[...])
   
   # Distribution of mean values for null tests in simulation 
   # Take at the distribution of means from TCGA - for gene and CAPRA_S i.e. 
   
-  load("/stornext/Home/data/allstaff/b/beasley.i/TABI/dev/Article_Sections/TCGA_Prostate_Simple.rda")
+  # load("dev/Article_Sections/TCGA_Prostate_Simple.rda")
+  # 
+  # TCGA_mean_distribution = TCGA %>% 
+  #   group_by(transcript, CAPRA_S) %>% 
+  #   summarise(mean = mean(read_count_normalised)) %$%
+  #   mean
   
-  TCGA_mean_distribution = TCGA %>% 
-    group_by(transcript, CAPRA_S) %>% 
-    summarise(mean = mean(read_count_normalised)) %$%
-    mean
-  
+  TCGA_mean_distribution = exp(6)
   
   # require(reshape2)
   # require(stats)
@@ -678,9 +679,9 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
 plot_rsim_df<-function(sim_df, # Dataframe of simulated read counts (outcome of sigmoidal_sim_df function)
                        type = "any") { # What type of gene do you want to randomly select - diff expressed (let = "DE"), null ("null"), or "any" 
   
-  box::use(dplyr[...],
-        magrittr[...],
-        ggplot2[...])
+  # box::use(dplyr[...],
+  #       magrittr[...],
+  #       ggplot2[...])
   
   # If 
   if(type == "DE") {
