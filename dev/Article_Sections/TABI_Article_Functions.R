@@ -228,26 +228,25 @@
 #' 
 #' @export
 sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
-                          n_false_tests, #Number of Null Curves (integer)
-                          beta = NA, #Value of beta for equation (double)
-                          k = NA, #k value ( k + a is upper plateau) (double > 0)
-                          A = NA, #A value (lower plateau level) (double >=0)
-                          sample_size, #Number of samples per gene - needs to be a multiple of covar length (integer)
-                          fixed_disp = TRUE, 
-                          disp_size, #value of dispersion - used to simulate for neg binomial distribution (double)
-                          covar_discrete = TRUE, # is there a discrete number of x-coordinates (TRUE) or is the x-coordinate continuous?
-                          covar = seq(from = -5, to=5, by = 0.5), #If x-coordinate is discrete then: vector of x-coordinates of samples (simulated range of CAPRA_S values)
-                          # If x-coordinate is continuous then: a vector of length two where the first element is the minimum possible value and the maximum is the second element
-                          alpha = "all", # range of alpha values to simulate (proportional to inflection)
-                          #by default all possible x-coordinates (- vector with min value, and max value - 
-                          #otherwise a two-element vector be used as min and max values for a continuous uniform distribution)
-                          null_mean_distribution = NULL, #distribution of means for a null test (based on values of mean for a single gene and CAPRA score from TCGA)
-                          seed_n = 30 #Let = FALSE if you don't want to select a random seed used, else give numerical value 
-                          # If simulating multiple datasets - and wanting different x-coordinate values
-                          # then seed_n should be false - the seed number used will be returned in the data frame for reproducibility
-                          ){ 
+                           n_false_tests, #Number of Null Curves (integer)
+                           beta = NA, #Value of beta for equation (double)
+                           k = NA, #k value ( k + a is upper plateau) (double > 0)
+                           A = NA, #A value (lower plateau level) (double >=0)
+                           sample_size, #Number of samples per gene - needs to be a multiple of covar length (integer)
+                           fixed_disp = TRUE, 
+                           disp_size, #value of dispersion - used to simulate for neg binomial distribution (double)
+                           covar_discrete = TRUE, # is there a discrete number of x-coordinates (TRUE) or is the x-coordinate continuous?
+                           covar = seq(from = -5, to=5, by = 0.5), #If x-coordinate is discrete then: vector of x-coordinates of samples (simulated range of CAPRA_S values)
+                           # If x-coordinate is continuous then: a vector of length two where the first element is the minimum possible value and the maximum is the second element
+                           alpha = "all", # range of alpha values to simulate (proportional to inflection)
+                           #by default all possible x-coordinates (- vector with min value, and max value - 
+                           #otherwise a two-element vector be used as min and max values for a continuous uniform distribution)
+                           null_mean_distribution = TCGA_mean_distribution, #distribution of means for a null test (based on values of mean for a single gene and CAPRA score from TCGA)
+                           seed_n = 30 #Let = FALSE if you don't want to select a random seed used, else give numerical value 
+                           # If simulating multiple datasets - and wanting different x-coordinate values
+                           # then seed_n should be false - the seed number used will be returned in the data frame for reproducibility
+){ 
   
-
   
   
   ############################################################################
@@ -259,7 +258,7 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
            data.table[...],
            magrittr[...], 
            stats[...])
-
+  
   
   # require(reshape2)
   # require(stats)
@@ -268,27 +267,17 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
   
   # Distribution of mean values for null tests in simulation 
   # Take at the distribution of means from TCGA - for gene and CAPRA_S i.e. 
-  
-  if(null_mean_distribution == "TCGA_mean_distribution"){
-  
-
-  load("/stornext/Home/data/allstaff/b/beasley.i/TABI/dev/Copy_Of_Article_Sections/TCGA_Prostate_Simple.rda")
-  
-  TCGA_mean_distribution = TCGA %>% 
-    group_by(transcript, CAPRA_S) %>% 
-    summarise(mean = mean(read_count_normalised)) %$%
-    mean
-  }
-  
-  if( is.null(null_mean_distribution) & n_false_tests > 0){
+  if(n_false_tests > 0){
     
-    stop("If you're simulating null tests you need to provide a distribution of null means to sample from. \n 
-         Please set null_mean_distribution to be a vector of values in this distribution, rather than \n
-         null_mean_distribution = NULL)")
+    load("/stornext/Home/data/allstaff/b/beasley.i/TABI/dev/Copy_Of_Article_Sections/TCGA_Prostate_Simple.rda")
     
-  }
-
-
+    TCGA_mean_distribution = TCGA %>% 
+      group_by(transcript, CAPRA_S) %>% 
+      summarise(mean = mean(read_count_normalised)) %$%
+      mean
+    
+  } 
+  
   
   # Total number of genes / transcripts / tests to simulate 
   
@@ -315,33 +304,33 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
   # covar<-seq(from = -5, to=5, by = 0.5) #21 different values of CAPRA_S
   n_cord<-length(covar)
   
-
+  
   # Condition if: 
- 
+  
   # If the simulated dataset is over a continuous x-axis then simulate x-coord values using a uniform distribution
   # taking the original covar to be 
   #vector of length two where the first element is the minimum possible value and the maximum is the second element
   
   if(covar_discrete != TRUE){
     
-  # Check that covar in is in the correct form - else stop and return error
-     if(length(covar)!=2|covar[2]<covar[1]){
-       stop(cat("The x-coordinate was given as continous, but the supplied covar value was not in the correct form. \n For continous x-coordinates, covar should be a vector of length two where \n the first element is the minimum possible value and the maximum is the second element. \n \n"))
-     }
+    # Check that covar in is in the correct form - else stop and return error
+    if(length(covar)!=2|covar[2]<covar[1]){
+      stop(cat("The x-coordinate was given as continous, but the supplied covar value was not in the correct form. \n For continous x-coordinates, covar should be a vector of length two where \n the first element is the minimum possible value and the maximum is the second element. \n \n"))
+    }
     
     # Warn that in the case of a continuous x-coordinate, 
     cat(" \n Continous x-coordinates are simulated using a uniform distribution. \n Samples could be unbalanced along the x-coordinate.\n")
-
-# Simulate continous x-coordinates    
-# Set of covar values which are going to correspond to the x values for each sample
+    
+    # Simulate continous x-coordinates    
+    # Set of covar values which are going to correspond to the x values for each sample
     covar = stats::runif(n = sample_size, min = covar[1], max = covar[2])
   }
   
-
-    # Condition if: 
   
-   # If x-coordinate is discrete and sample size is not a multiple of the supplied distribution of x-coordinates
-   # simulate sample covar values from the supplied discrete distribution of x-coordinates (giving a warning)
+  # Condition if: 
+  
+  # If x-coordinate is discrete and sample size is not a multiple of the supplied distribution of x-coordinates
+  # simulate sample covar values from the supplied discrete distribution of x-coordinates (giving a warning)
   
   else{
     if(sample_size %% n_cord != 0){
@@ -356,34 +345,34 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
       
       # Set of covar values which are going to correspond to the x values for each sample
       covar = sample(covar, 
-                      size = sample_size, 
-                      replace = TRUE)
+                     size = sample_size, 
+                     replace = TRUE)
       
     }
     
-   # Condition if:  
+    # Condition if:  
     
-   else{ # If x-coordinate is discrete and sample size is a multiple of the supplied distribution of x-coordinates
-     
-     # Then simulate an equal number of 
-     # Number of samples per x-coordinate value 
-     n_sam_cord = sample_size/n_cord
-     
-     # Replicate each x-coordinate value, so that each x-coordinate value is has n_sam_cord samples
-     covar = sapply(covar, 
+    else{ # If x-coordinate is discrete and sample size is a multiple of the supplied distribution of x-coordinates
+      
+      # Then simulate an equal number of 
+      # Number of samples per x-coordinate value 
+      n_sam_cord = sample_size/n_cord
+      
+      # Replicate each x-coordinate value, so that each x-coordinate value is has n_sam_cord samples
+      covar = sapply(covar, 
                      function(x) rep(x, n_sam_cord)) %>% c()
-     
-     } 
+      
+    } 
   }
   
- 
+  
   # Final covar values for samples in this data set
   # Arrange by value 
-   
-  covar = covar %>% 
-           sort()
   
-    #         #          #          #         #           #
+  covar = covar %>% 
+    sort()
+  
+  #         #          #          #         #           #
   
   
   
@@ -400,65 +389,65 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
   
   if(n_true_tests!=0) { #alpha is only applicable for DE genes - so if no DE genes ignore
     
-  if(is.na(beta)|is.na(A)|is.na(k)){ #If any of the required parameter values for the sigmoid curve
-    stop("One or more of the required parameter values (beta, A, k) for differentially abundant transcripts was not set.
+    if(is.na(beta)|is.na(A)|is.na(k)){ #If any of the required parameter values for the sigmoid curve
+      stop("One or more of the required parameter values (beta, A, k) for differentially abundant transcripts was not set.
          Either set these values, or don't simulate any differentially abundant transcripts (by setting n_true_tests = 0).")
-    
-  }
-  #Creating the sigmoidal curve based genes (true tests - diff transcribed genes)
-    
-  
-    
-  #################################################################
-  
-  
-    
-  #Alpha is linearly dependent on the value of the inflection, inflection = - alpha / beta
-  # so -inflection*beta = alpha
-  
-    
-  #Alpha is set to simulate such that inflection values are within all possible values of the x-coordinate range
-  
-  
-  # Condition if:    
-    
-  # If simulating over all possible values of alpha
-  # then simulate from uniform distribution, with 
-  # max = beta*max(x-coord)
-  # min = beta*min(x-coord)
-    
-  if (alpha[1] == "all") {
-  # simulate inflections for the full range of x coordinate values  
- 
-  set.seed(seed_n) 
-    
-  alpha = runif(min = min(covar)*abs(beta), 
-                 max = max(covar)*abs(beta),
-                 n = n_true_tests) 
-  
-  } 
-    
-  # Condition if 
-  # Alpha is provided a range 
-    
-  else{ # Else if a range of alpha is specified use that range 
-    
-    # Give warning if range is not in desired format, i.e. not a length two vector c(alpha_min, alpha_max)
-    
-    if(length(alpha)!=2|alpha[2]<alpha[1]){
-      stop(cat("The alpha was given as a range, but the supplied alpha vector was not in the correct form. \n For alpha as a range, alpha should be a vector of length two where \n the first element is the minimum possible value and the maximum is the second element \n \n"))
-    }
-
-    # Explain how alpha is being simulated
-    else{cat("Alpha values were simulated using a uniform distribution with the supplied range \n \n")
       
-    set.seed(seed_n) 
-    
-    alpha = runif(min = min(alpha),
-                  max = max(alpha),
-                  n = n_true_tests)
     }
-  }
+    #Creating the sigmoidal curve based genes (true tests - diff transcribed genes)
+    
+    
+    
+    #################################################################
+    
+    
+    
+    #Alpha is linearly dependent on the value of the inflection, inflection = - alpha / beta
+    # so -inflection*beta = alpha
+    
+    
+    #Alpha is set to simulate such that inflection values are within all possible values of the x-coordinate range
+    
+    
+    # Condition if:    
+    
+    # If simulating over all possible values of alpha
+    # then simulate from uniform distribution, with 
+    # max = beta*max(x-coord)
+    # min = beta*min(x-coord)
+    
+    if (alpha[1] == "all") {
+      # simulate inflections for the full range of x coordinate values  
+      
+      set.seed(seed_n) 
+      
+      alpha = runif(min = min(covar)*abs(beta), 
+                    max = max(covar)*abs(beta),
+                    n = n_true_tests) 
+      
+    } 
+    
+    # Condition if 
+    # Alpha is provided a range 
+    
+    else{ # Else if a range of alpha is specified use that range 
+      
+      # Give warning if range is not in desired format, i.e. not a length two vector c(alpha_min, alpha_max)
+      
+      if(length(alpha)!=2|alpha[2]<alpha[1]){
+        stop(cat("The alpha was given as a range, but the supplied alpha vector was not in the correct form. \n For alpha as a range, alpha should be a vector of length two where \n the first element is the minimum possible value and the maximum is the second element \n \n"))
+      }
+      
+      # Explain how alpha is being simulated
+      else{cat("Alpha values were simulated using a uniform distribution with the supplied range \n \n")
+        
+        set.seed(seed_n) 
+        
+        alpha = runif(min = min(alpha),
+                      max = max(alpha),
+                      n = n_true_tests)
+      }
+    }
     
     
     
@@ -478,87 +467,87 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
     
     
     
-  #Using the sigmoidal equation with 
-  #values as defined in the function
-  
-  sig_eq<-function(x, Alpha) {
+    #Using the sigmoidal equation with 
+    #values as defined in the function
     
-    #Lower plateau = A
-    #Upper plateau = k 
-    #Alpha adjusts inflection
-    #beta adjusts slope
-    
-    k = k
-    alpha_val = Alpha
-    beta = beta
-    A = A
-    
-    
-   sig_eq_res = c(x, 
-                  alpha_val, 
-                  (k-A)/(1+exp(
-                                -(alpha_val + x*beta))
-                                                        ) + A
-                                                               )  
-   
-    
-   names(sig_eq_res) = c("CAPRA_S",
-        "alpha",
-        "log_y_hat")
+    sig_eq<-function(x, Alpha) {
+      
+      #Lower plateau = A
+      #Upper plateau = k 
+      #Alpha adjusts inflection
+      #beta adjusts slope
+      
+      k = k
+      alpha_val = Alpha
+      beta = beta
+      A = A
+      
+      
+      sig_eq_res = c(x, 
+                     alpha_val, 
+                     (k-A)/(1+exp(
+                       -(alpha_val + x*beta))
+                     ) + A
+      )  
+      
+      
+      names(sig_eq_res) = c("CAPRA_S",
+                            "alpha",
+                            "log_y_hat")
       
       return(sig_eq_res) 
-  }
-  
-  #Use the sigmodail eq  above to simulate log_y_hat values 
-  #(i.e. mean values for each x coordinate values )
-  
-  #For log_y_hat list
-  #Each list element is a gene
-  #Top row is x-coordinate values / CAPRA-S values
-  #Middle row is 
-  #Bottom row is a simulated mean (log_y_hat) value
-  
-
-  
-  log_y_hat_list = lapply(alpha, function(a)
-    sapply(covar, #For better behaviour of simulated curve, centre values around 0 
-                #Replacating normalisation process undertaken by TABI
-                function(x)
-                  sig_eq(x,a)
-  )) 
-  
-  
-  
-  # Then convert list to a data frame with an id number column for each gene 
-  # and rows converted to columns
-  log_y_hat_df = log_y_hat_list %>% 
-    lapply(., function(x) t(x) %>% 
-                                   as_tibble()) %>% 
-                                                data.table::rbindlist(.,idcol = "id")
-  
-  true_tests = log_y_hat_df %>% 
-    mutate(Gene_number = paste0("X", id)) %>% 
-    rowwise() %>% 
-    mutate(value = rnbinom(mu = exp(log_y_hat), #From each mean value of each x coordinate (log_y_hat), Simulated Negative Binomial Distributed Values
-                size = disp_size, #Precision/overdispersion values
-                n = 1)) %>% 
-    ungroup() %>% 
-    mutate(sample_id = rep(1:(sample_size), n_true_tests)) %>% 
-    arrange(id, sample_id) %>% 
-    select(-id) %>% 
-    mutate(Null_test = "FALSE")
-
-  
-  # Add parameter about the simulated curves information - 
-  true_tests = true_tests %>% 
-    mutate(sample_size = sample_size) %>% 
-    mutate(A = A) %>% 
-    mutate(slope = beta) %>% 
-    mutate(k = k) 
-  
+    }
+    
+    #Use the sigmodail eq  above to simulate log_y_hat values 
+    #(i.e. mean values for each x coordinate values )
+    
+    #For log_y_hat list
+    #Each list element is a gene
+    #Top row is x-coordinate values / CAPRA-S values
+    #Middle row is 
+    #Bottom row is a simulated mean (log_y_hat) value
+    
+    
+    
+    log_y_hat_list = lapply(alpha, function(a)
+      sapply(covar, #For better behaviour of simulated curve, centre values around 0 
+             #Replacating normalisation process undertaken by TABI
+             function(x)
+               sig_eq(x,a)
+      )) 
+    
+    
+    
+    # Then convert list to a data frame with an id number column for each gene 
+    # and rows converted to columns
+    log_y_hat_df = log_y_hat_list %>% 
+      lapply(., function(x) t(x) %>% 
+               as_tibble()) %>% 
+      data.table::rbindlist(.,idcol = "id")
+    
+    true_tests = log_y_hat_df %>% 
+      mutate(Gene_number = paste0("X", id)) %>% 
+      rowwise() %>% 
+      mutate(value = rnbinom(mu = exp(log_y_hat), #From each mean value of each x coordinate (log_y_hat), Simulated Negative Binomial Distributed Values
+                             size = disp_size, #Precision/overdispersion values
+                             n = 1)) %>% 
+      ungroup() %>% 
+      mutate(sample_id = rep(1:(sample_size), n_true_tests)) %>% 
+      arrange(id, sample_id) %>% 
+      select(-id) %>% 
+      mutate(Null_test = "FALSE")
+    
+    
+    # Add parameter about the simulated curves information - 
+    true_tests = true_tests %>% 
+      mutate(sample_size = sample_size) %>% 
+      mutate(A = A) %>% 
+      mutate(slope = beta) %>% 
+      mutate(k = k) 
+    
   } 
-
-
+  
+  
   #         #          #          #         #           #
   
   
@@ -574,49 +563,49 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
   
   else{ # Else simulate null genes / transcripts as well 
     
-  set.seed(seed_n) 
-  #Simulation a n_null number of means - any integer between 0 and 10000
-  
-  null_means = data.frame(log_y_hat = sample(log(null_mean_distribution), 
-                        size = n_false_tests, 
-                        replace = T), 
-                        id = 1:n_false_tests,
-                         Gene_number = paste0("V",
-                                              1:n_false_tests))
-  
-  
-  null_df = lapply(1:sample_size,
-                   function(x) {
-                     null_means %>% 
-                     mutate(sample_id = x) %>% 
-                     mutate(CAPRA_S = covar[x]) 
+    set.seed(seed_n) 
+    #Simulation a n_null number of means - any integer between 0 and 10000
+    
+    null_means = data.frame(log_y_hat = sample(log(null_mean_distribution), 
+                                               size = n_false_tests, 
+                                               replace = T), 
+                            id = 1:n_false_tests,
+                            Gene_number = paste0("V",
+                                                 1:n_false_tests))
+    
+    
+    null_df = lapply(1:sample_size,
+                     function(x) {
+                       null_means %>% 
+                         mutate(sample_id = x) %>% 
+                         mutate(CAPRA_S = covar[x]) 
                      }) %>% 
-            bind_rows() 
-  
-  #Simulate null_values 
-  
-  null_tests = null_df %>% 
-                mutate(value = rnbinom(mu = exp(log_y_hat), 
-                                      size = disp_size,
-                                      n =1)) %>% 
-    mutate(Null_test = "TRUE") %>% 
-    mutate(sample_size = sample_size) %>% 
-    arrange(id, sample_id) %>% 
-    select(-id)
-
-  #Return a data frame with CAPRA_S (x-coordinate), 
-  #Gene_number (Gene identifier column), value (simulated gene expression value)
-  #Null_test (identifying true vs null tests), Alpha and Sample (Sample Identifcation Column)
-  #All True Tests are Differentiated by having a "X" in Gene_number
-  if(n_true_tests != 0) {
-    final_df<-bind_rows(true_tests, 
-                    null_tests)
-  }
-  
-  else{
-    final_df = null_tests
-  }
-
+      bind_rows() 
+    
+    #Simulate null_values 
+    
+    null_tests = null_df %>% 
+      mutate(value = rnbinom(mu = exp(log_y_hat), 
+                             size = disp_size,
+                             n =1)) %>% 
+      mutate(Null_test = "TRUE") %>% 
+      mutate(sample_size = sample_size) %>% 
+      arrange(id, sample_id) %>% 
+      select(-id)
+    
+    #Return a data frame with CAPRA_S (x-coordinate), 
+    #Gene_number (Gene identifier column), value (simulated gene expression value)
+    #Null_test (identifying true vs null tests), Alpha and Sample (Sample Identifcation Column)
+    #All True Tests are Differentiated by having a "X" in Gene_number
+    if(n_true_tests != 0) {
+      final_df<-bind_rows(true_tests, 
+                          null_tests)
+    }
+    
+    else{
+      final_df = null_tests
+    }
+    
   }
   
   # Add all the required information to the final data frame
@@ -626,23 +615,23 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
            mutate(seed_number = seed_n) %>% 
            mutate(disp = disp_size) %>% 
            mutate(inflect = ifelse(Null_test == TRUE,
-                                  NA,
-                                  -1*as.numeric(alpha)/(slope))) %>%  #inflection is = -alpha/beta - only include for genes which are truly DE
+                                   NA,
+                                   -1*as.numeric(alpha)/(slope))) %>%  #inflection is = -alpha/beta - only include for genes which are truly DE
            mutate(Gene_ref = ifelse(Null_test == TRUE, # Add gene reference / identification column
                                     paste0(Gene_number, #If gene is null - then gene id includes gene number sample size, dispersion, seed_number
                                            sample_size,
                                            disp_size,
                                            seed_number),
                                     paste0(Gene_number, # Else if DE gene - then gene id also includes parameter values 
-                                    slope, 
-                                    alpha, 
-                                    k, 
-                                    A, 
-                                    sample_size, 
-                                    disp_size, 
-                                    seed_number)
-                                    ) 
-                  ) %>% 
+                                           slope, 
+                                           alpha, 
+                                           k, 
+                                           A, 
+                                           sample_size, 
+                                           disp_size, 
+                                           seed_number)
+           ) 
+           ) %>% 
            mutate(Null_test = as.logical(Null_test)) %>% 
            mutate(value = as.integer(value)) %>% 
            mutate(seed_number = as.integer(seed_number)) %>% 
@@ -660,8 +649,8 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
                   A,
                   k,
                   seed_number
-                  )
-         ) 
+           )
+  ) 
   
 }
 
@@ -702,20 +691,20 @@ sigmoidal_sim_df<-function(n_true_tests, #Number of True Positives (integer)
 plot_rsim_df<-function(sim_df, # Dataframe of simulated read counts (outcome of sigmoidal_sim_df function)
                        type = "any") { # What type of gene do you want to randomly select - diff expressed (let = "DE"), null ("null"), or "any" 
   
-  # box::use(dplyr[...],
-  #       magrittr[...],
-  #       ggplot2[...])
+  box::use(dplyr[...],
+           magrittr[...],
+           ggplot2[...])
   
   # If 
   if(type == "DE") {
     
-  gene_name<-sim_df %>%  
-    select(Gene_ref) %>% 
-    filter(grepl("X", Gene_ref))  %>% 
-    ungroup() %>% 
-    distinct() %>% 
-    sample_n(1) %$%
-    Gene_ref 
+    gene_name<-sim_df %>%  
+      select(Gene_ref) %>% 
+      filter(grepl("X", Gene_ref))  %>% 
+      ungroup() %>% 
+      distinct() %>% 
+      sample_n(1) %$%
+      Gene_ref 
   } 
   
   else if(type == "null") { 
@@ -723,36 +712,36 @@ plot_rsim_df<-function(sim_df, # Dataframe of simulated read counts (outcome of 
     gene_name<-sim_df %>%  
       select(Gene_ref) %>% 
       filter(grepl("V", Gene_ref)) %>% 
-               ungroup() %>% 
-               distinct() %>% 
-               sample_n(1) %$%
-               Gene_ref
-    }
+      ungroup() %>% 
+      distinct() %>% 
+      sample_n(1) %$%
+      Gene_ref
+  }
   
   else {
     
-      gene_name<-sim_df %>%  
-        select(Gene_ref) %>% 
-        ungroup() %>% 
-        distinct() %>% 
-        sample_n(1) %$%
-        Gene_ref
+    gene_name<-sim_df %>%  
+      select(Gene_ref) %>% 
+      ungroup() %>% 
+      distinct() %>% 
+      sample_n(1) %$%
+      Gene_ref
     
   }
   
   # If the gene selected is a truly DE gene (with identifier X and not V)
   # take important parameter attributes for this e.g. slope, sample size etc. 
-
+  
   if(grepl("X", paste0(gene_name))) {
     att= sim_df %>% 
-       ungroup() %>% 
-       filter(Gene_ref == gene_name) %>%
+      ungroup() %>% 
+      filter(Gene_ref == gene_name) %>%
       select(sample_size, slope, inflect) %>%
       mutate(slope = paste(slope, "inflection  = ", inflect)) %>% 
       select(sample_size, slope) %>% 
       distinct() }
-
- # Otherwise if null gene, then label as such 
+  
+  # Otherwise if null gene, then label as such 
   # and only take sample size as an important parameter
   else {
     att= sim_df %>% 
@@ -763,8 +752,8 @@ plot_rsim_df<-function(sim_df, # Dataframe of simulated read counts (outcome of 
       mutate( slope = "No Slope (Null Test)")
   }
   
-
- plot = sim_df %>% 
+  
+  plot = sim_df %>% 
     ungroup() %>% 
     filter(Gene_ref == gene_name) %>% 
     mutate(Test_type = ifelse(Null_test == TRUE, "Null", "DE")) %>% 
@@ -776,29 +765,29 @@ plot_rsim_df<-function(sim_df, # Dataframe of simulated read counts (outcome of 
     geom_point(col = "dodgerblue", size = 2) + 
     scale_y_log10() + 
     labs(subtitle = paste("Sample size = ", att$sample_size,
-                            "Slope = ", att$slope), 
+                          "Slope = ", att$slope), 
          y = "Simulated normalised RNA seq counts + 1",
          x = "Simulated CAPRA-S values (x-coordinate)",
          title = paste0("Example Simulated Gene,",
                         gene_name)) + 
-   theme(panel.border = element_rect(colour = "black", fill=NA, size=1), 
-         panel.background = element_blank(),
-         panel.grid.major = element_line(colour = "grey84"), 
-         panel.grid.minor = element_line(colour = "grey84", linetype = 2)) + 
-   list(
-     #scale_fill_manual(values = friendly_cols,   na.value = "black"),
-     #scale_color_manual(values = friendly_cols,   na.value = "black"),
-     theme_bw() +
-       theme(
-         panel.border = element_blank(),
-         axis.line = element_line(),
-         text = element_text(size = 9),
-         legend.position = "bottom",
-         strip.background = element_blank(),
-         axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)
-       )
-   )
- 
+    theme(panel.border = element_rect(colour = "black", fill=NA, size=1), 
+          panel.background = element_blank(),
+          panel.grid.major = element_line(colour = "grey84"), 
+          panel.grid.minor = element_line(colour = "grey84", linetype = 2)) + 
+    list(
+      #scale_fill_manual(values = friendly_cols,   na.value = "black"),
+      #scale_color_manual(values = friendly_cols,   na.value = "black"),
+      theme_bw() +
+        theme(
+          panel.border = element_blank(),
+          axis.line = element_line(),
+          text = element_text(size = 9),
+          legend.position = "bottom",
+          strip.background = element_blank(),
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)
+        )
+    )
+  
   
   print(plot)
   
