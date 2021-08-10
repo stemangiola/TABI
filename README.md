@@ -2,20 +2,31 @@
 
 Transcriptomic Analyses through Bayesian Inference
 
+
+# Installation 
+
+### From github 
+
+```r
+#install.packages("devtools")
+
+devtools::install_github("stemangiola/TABI")
+```
+
 # Usage 
 
 To apply TABI, read count data should be a table (tibble, data.frame) in tidy format (i.e. each row an observation, each column a variable). Additionally, the data should have: 
 
 - a column which identifies the sample (biological replicate) 
 - a column which identifies the transcript 
-- a column of unnormalised read counts (*Importantly* as TABI is designed to work with unnormalised read counts, if you supply TABI with normalised read counts the model will behave unpredictablly)
+- a column of unnormalised read counts (*Important* TABI is designed to work with unnormalised read counts, if you supply TABI with normalised read counts the model will behave unpredictably)
 - a column for each factor of interest 
 
 # Example usage on a subset of 100 transcripts from the TCGA Dataset
 
-We provide a example below of running TABI on a subset of transcripts from the TCGA prostate cancer data. In this example we have undertaken RNA sequencing on tumours from a cohort of patients with prostate cancer. We are interested in using TABI to measure how read count varies across a pseudo-continuous factor of interest, CAPRA-S (a clinical measurement of likelihood of prostate cancer reoccurrence). We also believe purity score of the tumour may be impacting read count, 
+We provide a example below of running TABI on a subset of transcripts from the TCGA prostate cancer dataset. In this example we have undertaken RNA sequencing on tumours from a cohort of patients with prostate cancer. We are interested in using TABI to measure how read count varies across a pseudo-continuous factor of interest, CAPRA-S (a clinical measurement of likelihood of prostate cancer reoccurrence). We also believe purity score of the tumour may be impacting read count, so we include it as a factor of interest
 
-```R
+```r
 
 if("package:TABI" %in% search()) detach("package:TABI", unload=TRUE, force=TRUE)
 library(TABI)
@@ -37,24 +48,58 @@ head(TCGA_example) # For example see format of TCGA
 TCGA_example_na_rm = TCGA_example %>% dplyr::filter(!is.na(CAPRA_S))
 
 
-# Run TABI_glm across multiple genes
+# Let's investigate the differential abundance of a single prostate tumour supressor gene, SPRY4
 
-TABI_TCGA_resTABI::TABI_glm(
-                            .data = TCGA_example_na_rm, 
+SPRY4_df = TCGA_example_na_rm %>% 
+            dplyr::filter(grepl("SPRY4", transcript))
+
+# Visually observe the distribution of read count for transcripts of this gene accross the covariate (CAPRA-S)
+
+library(ggplot2)
+ 
+SPRY4_df %>% 
+ggplot(aes(x=CAPRA_S, y=read_count + 1)) + 
+geom_point() + 
+scale_y_log10() + 
+theme_bw()
+
+# Run TABI_glm across a single gene
+
+TABI_TCGA_res= TABI::TABI_glm(
+                            .data = SPRY4_df, 
                             .transcript = transcript, #The column which identifies the transcript 
                             .sample = sample.ID, # The column which identifies the sample
-                            .abundance = read_count, # The column of read count 
+                            .abundance = read_count, # The column of read counts / transcript abundance 
 	                          formula = ~ CAPRA_S+purity.score
 )
 
-# 
+# We can investigate the fitted parameters of the model by looking at: 
+
+TABI_TCGA_res$fit
+
+
+# We can also change the number of iterations for which we sample
+
+# More iterations, is needed for more precise estimates for e.g. crtical intervals
+# But is likely unnecessary for estimates of means of paramters
+
+TABI_TCGA_res = TABI::TABI_glm(
+      .data = SPRY4_df,
+      ~CAPRA_S,
+      .abundance = value, #The column which identifies the transcript 
+      .sample = sample.ID,# The column which identifies the sample
+      .transcript = Gene_ref, # The column of read counts / transcript abundance 
+      chains = 4,
+      cores = 1, 
+      iter = 5000, # Total number of iterations - default is 500
+      warmup = 2500
+    )
 
 
 ```
 
  
-
-
+# Old README material: 
 
 # Test
 
