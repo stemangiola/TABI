@@ -2,6 +2,8 @@
 
 # Set up
 
+library(future)
+
 # n cores / for running in parallel 
 n =  availableCores()
 
@@ -72,9 +74,8 @@ library(tidyr)
 # }
 
 
-
 # Load functions from Functions_Simulate_RNA_seq_df using box 
-options(box.path = "/data/gpfs/projects/punim0586/ibeasley/TABI/dev/Article_Sections")   
+options(box.path = "..")   
 
 
 #' @export
@@ -133,9 +134,8 @@ slopes %>%
 # All other parameters remain constant with:
 # (reasonable parameters given TCGA data, see Figure 1C)
 
-A = 6 #lower plateau
-
-k = 6 + 7 #upper plateau
+A = 4 #lower plateau
+k = 6 #upper plateau
 
 
 # n workers (for furrr parallelisation)
@@ -164,7 +164,7 @@ slopes_sim_df = furrr::future_map_dfr(.x = slopes,
                                         disp_size = 0.425,
                                         covar =  seq(from = -5, to =5, by =0.5),
                                         alpha = c(0,0),
-                                        seed_n  = 151), # set seed
+                                        seed_n  = FALSE), # set seed
                                       .progress = TRUE)
 
 # Check: Structure of data frame
@@ -249,6 +249,7 @@ toc()
 tic("Inflection set up")
 
 # Inflection  = - alpha / beta, so for simplicity in this example let beta = 1
+# in this case, alpha = -inflection 
 
 slopes = 1 
 
@@ -267,9 +268,9 @@ alpha %>%
 
 # All other parameters remain constant with 
 
-k  = 6 + 7 # upper plateau 
+k  = 6 # upper plateau 
 
-A = 6 # lower plateau 
+A = 4 # lower plateau 
 
 
 sample_size = seq(from = -5,
@@ -292,7 +293,7 @@ inflection_sim_df = furrr::future_map_dfr(.x = alpha,
                                             disp_size = 0.425, 
                                             alpha = c(.x,.x), #Keep infection constant - and centered in the middle
                                             covar =  seq(from = -5, to =5, by =0.5),
-                                            seed_n = 151),
+                                            seed_n = FALSE),
                                           .progress = TRUE,
                                           .options = furrr_options(seed = TRUE)) 
 
@@ -314,15 +315,13 @@ toc()
 
 # Check: plot some genes for realism
 
-#plot_rsim_df(slopes_sim_df)
+TABI_Article_Functions$plot_rsim_df(inflection_sim_df)
+
+TABI_Article_Functions$plot_rsim_df(inflection_sim_df)
 
 
-saveRDS(inflection_sim_df, 
-        file = "./inflection_sim_df.rds")
-
-
-# Calculate the formula to converted unscaled inflection values to scaled inflection values
-
+# The formula to convert unscaled covariate values to scaled covariate values
+# within TABI 
 scale_xcord<- function(formula, data){
   
   require(tidyr)
@@ -365,26 +364,41 @@ inflection_df_by_gene_ref = inflection_sim_df %>%
   rename(sample = sample_id) %>% 
   split(.$Gene_ref)
 
+# use the first simulated transcript to 
+# calculate the linear relationship between scaled and unscaled covariate values
 lm_scaled = scale_xcord(~CAPRA_S, 
                         inflection_df_by_gene_ref[[1]]) %>% 
   lm(scaled_CAPRA_S~CAPRA_S, data = .) 
 
-
+# use this relationship to 
+# calculate the value of the inflection when it has been scaled 
 scaled_inflect =tidy(lm_scaled)$estimate[1]+tidy(lm_scaled)$estimate[2]*(inflection_sim_df %>% 
                                                                            select(inflect) %>% 
-                                                                           distinct() %$% inflect)
+                                                                           distinct() %$% 
+                                                                           inflect)
 
+# create a data.frame which matches the unscaled inflections 
+# with their scaled counterparts
 inflection_scaled = data.frame(inflect = inflection_sim_df %>% 
                                  select(inflect) %>% 
                                  distinct(), 
                                scaled_inflect = scaled_inflect)
 
+# use the above data frame to add a column of scaled inflections
+# to the data frame of simulated genes / transcripts 
 inflection_sim_df = inner_join(inflection_sim_df, inflection_scaled)
+
+
+saveRDS(inflection_sim_df,
+        file = "./inflection_sim_df.rds")
 
 print("All set up complete")
 
-# Run this data set on TABI and extract fit data 
 
+
+# Run this data set on TABI and extract fit data 
+# Using TABI gene-wise - so create a list of data frames
+# where each data frame is data on a single transcript
 inflection_df_by_gene_ref = inflection_sim_df %>% 
   rename(sample = sample_id) %>% 
   split(.$Gene_ref)
@@ -404,7 +418,7 @@ TABI_fit_inflection_list = inflection_df_by_gene_ref %>%
       chains = 4,
       cores = 1,
       iter = 5000, # total number of iterations
-      warmup = 2000
+      warmup = 2500
     ) %$% 
       fit  %>% 
       rstan::summary() %$% 
@@ -473,8 +487,8 @@ Fig_1A = TABI_fit_inflection_df %>%
 Fig_1B = TABI_fit_slopes_df %>%
   dplyr::filter(par == "beta[1,1]") %>%
   dplyr::rename(lower := "2.5%", upper := "97.5%") %>%
-  #dplyr::mutate(across(.cols = c(lower, upper, mean), ~.x/3.102418)) %>% 
-  dplyr::mutate(slope = slope*3.102418) %>% 
+  dplyr::mutate(across(.cols = c(lower, upper, mean), ~.x/3.102418)) %>% 
+  #dplyr::mutate(slope = slope*3.102418) %>% 
   dplyr::select(Gene_ref, mean, lower, upper, slope) %>%
   rowwise() %>%
   #mutate(mean = log(mean), lower = log(lower), upper = log(upper)) %>%
@@ -493,4 +507,12 @@ Fig_1B = TABI_fit_slopes_df %>%
        y = "TABI Estimated Slope",
        title = "TABI Inferred vs Simulated Slope Value")
 
+library(patchwork)
+
+Fig_1A + Fig_1B
+
+
+ggsave(Fig_1A + Fig_1B, "Fig_1AB.pdf")
+
 ################################################################################
+
